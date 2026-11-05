@@ -12,8 +12,8 @@
 | `KEY_PASSWORD` | كلمة السر نفسها |
 
 ثم **Actions ← Android build ← Run workflow**. سيخرج في Artifacts ملفان:
-- `mini-kingdoms-test-1.0.X.apk` — للتجربة على هاتفك (إعلانات تجريبية).
-- `mini-kingdoms-store-1.0.X.aab` — **للمتجر** (إعلانات حقيقية). لا تحتاج تثبيته.
+- `mini-kingdoms-TEST-1.0.X.apk` — **نسخة الاختبار** لهاتفك: اسمها "الممالك TEST" وعلى أيقونتها شريط أحمر، إعلانات Google التجريبية فقط، وتُثبَّت بجانب نسخة المتجر.
+- `mini-kingdoms-PRODUCTION-1.0.X.aab` — **نسخة الإنتاج** للمتجر: إعلاناتك الحقيقية. لا تثبّتها ولا تضغط على إعلاناتك أبداً.
 
 ⚠️ احفظ `mini-kingdoms-upload.jks` و `secrets.txt` في مكان آمن خاص. هذا "مفتاح الرفع":
 إذا ضاع يمكن طلب مفتاح جديد من Google لأن التطبيق يستخدم Play App Signing، لكن ذلك يأخذ أياماً.
@@ -41,7 +41,7 @@ https://play.google.com/console — رسوم مرة واحدة (25$). الحسا
 - **Content rating**: استبيان IARC — عنف كرتوني خفيف (معارك بشخصيات صغيرة، بلا دم).
 
 ## 6) الرفع
-**Testing ← Closed testing** (أو Production) ← **Create new release** ← ارفع `mini-kingdoms-store-1.0.X.aab`.
+**Testing ← Closed testing** (أو Production) ← **Create new release** ← ارفع `mini-kingdoms-PRODUCTION-1.0.X.aab`.
 كل بناء جديد رقمه أكبر تلقائياً.
 
 ## 7) ربط AdMob بالمتجر

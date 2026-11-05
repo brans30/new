@@ -19,15 +19,23 @@ GitHub يبنيه تلقائياً بعد كل رفع، ولا تحتاج تثب
 1. في صفحة المستودع على GitHub اضغط **Actions**.
 2. اختر آخر تشغيل باسم **Android build** (علامة ✅ خضراء = نجح، يأخذ ~5–8 دقائق).
 3. في أسفل الصفحة تحت **Artifacts** حمّل `mini-kingdoms-1.0.X`.
-4. فك الضغط وانقل `mini-kingdoms-test-1.0.X.apk` إلى الهاتف وثبّته
+4. فك الضغط وانقل `mini-kingdoms-TEST-1.0.X.apk` إلى الهاتف وثبّته
    (اسمح بـ "تثبيت من مصادر غير معروفة" عندما يطلب الهاتف).
 
 لبناء جديد بدون تعديل: Actions → Android build → **Run workflow**.
 
-## الإعلانات
-`testing: true` في `www/src/systems/Ads.js` يعرض إعلانات Google التجريبية حتى مع معرّفاتك — هذا هو الصحيح أثناء التجربة
-(الضغط على إعلاناتك الحقيقية أثناء التجربة قد يوقف حساب AdMob).
-قبل النشر في المتجر فقط: اجعلها `false`.
+## نسختان: TEST و PRODUCTION
+| | TEST (`testing`) | PRODUCTION (`production`) |
+|---|---|---|
+| الملف | `mini-kingdoms-TEST-1.0.X.apk` | `mini-kingdoms-PRODUCTION-1.0.X.aab` |
+| لمن | هاتفك للتجربة | Google Play |
+| الاسم | الممالك TEST (شريط أحمر على الأيقونة، وشارة TEST في اللعبة) | الممالك الصغيرة |
+| المعرّف | `com.minikingdoms.game.test` (تُثبَّت بجانب نسخة المتجر) | `com.minikingdoms.game` |
+| الإعلانات | معرّفات Google التجريبية فقط | معرّفاتك الحقيقية |
+
+كيف تعمل: ملف `www/env.js` يقول دائماً `test`، ونسخة الإنتاج وحدها تستبدله بـ
+`android/app/src/production/assets/public/env.js`. كل بناء يفحص الملفات الناتجة بنفسه ويتوقف إذا اختلط شيء.
+معرّفات الإعلانات في `www/src/systems/Ads.js` (REAL و TEST).
 
 ## النسخة الموقّعة للمتجر (Google Play) — لاحقاً
 المتجر يحتاج ملف `.aab` موقّعاً بمفتاحك. أضف هذه الأسرار في

@@ -10,10 +10,10 @@
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true">
 
-        <!-- AdMob app id (your account) -->
+        <!-- AdMob app id: yours in the production build, Google's sample id in the testing build (app/build.gradle) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
-            android:value="ca-app-pub-9600707427827471~9678181409"/>
+            android:value="${admobAppId}"/>
 
         <activity
             android:configChanges="orientation|keyboardHidden|keyboard|screenSize|locale|smallestScreenSize|screenLayout|uiMode|navigation|density"

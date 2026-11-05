@@ -19,14 +19,24 @@
 // =====================================================================
 import { t } from '../i18n.js';
 
-export const AD_CONFIG = {
-  appId: 'ca-app-pub-9600707427827471~9678181409',          // goes in AndroidManifest.xml
-  // Google's TEST units (Android). Replace with yours (they look like ca-app-pub-XXXX/YYYY).
-  bannerId: 'ca-app-pub-3940256099942544/6300978111',
-  interstitialId: 'ca-app-pub-9600707427827471/7563988102',     // yours ("regular" ad): before the first battle / after stages
-  rewardedId: 'ca-app-pub-9600707427827471/8904989931',         // yours: rewarded
-  testing: true,                                             // false only for the store release
+// TEST build (env.js says 'test'): Google's official test units, always.
+// PRODUCTION build (the store .aab): your real units.
+export const IS_PRODUCTION = window.APP_ENV === 'production';
+
+const REAL = {
+  appId: 'ca-app-pub-9600707427827471~9678181409',            // in AndroidManifest (production flavor)
+  bannerId: null,                                              // ← no banner unit of yours yet: the store build shows no banner
+  interstitialId: 'ca-app-pub-9600707427827471/7563988102',     // "regular" ad: before the first battle / after stages
+  rewardedId: 'ca-app-pub-9600707427827471/8904989931',         // rewarded
 };
+const TEST = {
+  appId: 'ca-app-pub-3940256099942544~3347511713',             // Google's sample app (testing flavor)
+  bannerId: 'ca-app-pub-3940256099942544/6300978111',
+  interstitialId: 'ca-app-pub-3940256099942544/1033173712',
+  rewardedId: 'ca-app-pub-3940256099942544/5224354917',
+};
+
+export const AD_CONFIG = { ...(IS_PRODUCTION ? REAL : TEST), testing: !IS_PRODUCTION };
 
 const QUIET_START = 2 * 60000;        // no ads right after opening the game
 const INTER_GAP = 60000;              // never two full-screen ads this close together
@@ -104,7 +114,7 @@ class Ads {
   banner(on) { this.wantBanner = on; this.syncBanner(); }
 
   async syncBanner() {
-    const show = this.wantBanner && !this.quiet && !this.busy;
+    const show = this.wantBanner && !this.quiet && !this.busy && !!AD_CONFIG.bannerId;
     if (show === this.bannerOn) return;
     this.bannerOn = show;
     document.body.classList.toggle('has-banner', show);

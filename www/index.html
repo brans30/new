@@ -245,6 +245,9 @@
   .castle-art img { display: block; width: 100%; height: auto; image-rendering: pixelated; }
   .m-logo .castle-art + .m-crowns { margin-top: -30px; position: relative; }
   .m-col { display: flex; flex-direction: column; gap: 14px; width: min(320px, 100%); }
+  /* the TEST build wears a small badge so it is never confused with the store build */
+  body.env-test::after { content: 'TEST'; position: fixed; top: 6px; left: 6px; z-index: 9999; pointer-events: none;
+    font: 800 10px/1 system-ui, sans-serif; letter-spacing: 1px; color: #fff; background: #d6452f; padding: 3px 6px; border-radius: 4px; opacity: .85; }
   /* the game's emblem (tools/art/emblem.svg): a warm glow behind, floating gently */
   .emblem { position: relative; width: min(230px, 52vw); margin: 0 auto -4px; }
   .emblem::before { content: ''; position: absolute; inset: -14%; border-radius: 50%; pointer-events: none;
@@ -902,6 +905,7 @@
   <div id="adoffer" class="hidden"></div>
   <div id="menu" class="hidden"></div>
 
+  <script src="env.js"></script><!-- test / production build -->
   <script src="lib/capacitor.js"></script><!-- Android app bridge (does nothing in a browser) -->
   <script src="lib/phaser.min.js"></script>
   <script type="module" src="src/main.js"></script>

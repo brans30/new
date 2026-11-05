@@ -17,6 +17,24 @@ android {
             ignoreAssetsPattern = '!.svn:!.git:!.ds_store:!*.scc:.*:!CVS:!thumbs.db:!picasa.ini:!*~'
         }
     }
+    // Two versions of the app:
+    //   testing     "الممالك الصغيرة TEST", id com.minikingdoms.game.test, Google's TEST ads only,
+    //               a TEST badge and icon. Installs next to the store version.
+    //   production  the store version (Google Play), your REAL ads.
+    flavorDimensions = ["env"]
+    productFlavors {
+        testing {
+            dimension "env"
+            applicationIdSuffix ".test"
+            versionNameSuffix "-test"
+            manifestPlaceholders = [admobAppId: "ca-app-pub-3940256099942544~3347511713"]   // Google's sample app id
+        }
+        production {
+            dimension "env"
+            manifestPlaceholders = [admobAppId: "ca-app-pub-9600707427827471~9678181409"]   // your AdMob app
+        }
+    }
+
     // Store release: signed with your keystore when the 4 values are given
     // (GitHub secrets, see BUILD_APK.md). Without them only the test (debug) APK is built.
     signingConfigs {

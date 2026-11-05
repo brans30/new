@@ -1,7 +1,8 @@
 # Builds the Android app on GitHub's servers every time the game is pushed.
-# The APK appears under Actions -> the run -> "Artifacts" (download, unzip, install on the phone).
-# With the 4 signing secrets set (see BUILD_APK.md) it also builds the signed
-# store file for Google Play (.aab) with REAL ads.
+# TEST:       mini-kingdoms-TEST-1.0.X.apk  - install on your phone; Google's test ads only.
+# PRODUCTION: mini-kingdoms-PRODUCTION-1.0.X.aab - upload to Google Play; your real ads
+#             (built only when the 4 signing secrets are set, see PLAY_STORE.md).
+# Both appear under Actions -> the run -> "Artifacts".
 name: Android build
 
 on:
@@ -41,13 +42,17 @@ jobs:
         run: npm ci
 
       - name: Copy the game into the Android project
-        run: npx cap sync android
+        run: |
+          npx cap sync android
+          # safety: the shared game files must always be the TEST ones; only the production flavor overrides env.js
+          grep -q "APP_ENV = 'test'" android/app/src/main/assets/public/env.js
+          grep -q "APP_ENV = 'production'" android/app/src/production/assets/public/env.js
 
-      - name: Build the test APK
+      - name: Build TEST (Google's test ads, installs next to the store app)
         working-directory: android
         run: |
           chmod +x gradlew
-          ./gradlew assembleDebug --no-daemon
+          ./gradlew assembleTestingDebug --no-daemon
 
       - name: Signing key (only when the secrets exist)
         id: key
@@ -58,7 +63,7 @@ jobs:
           echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "file=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
 
-      - name: Build the signed store release
+      - name: Build PRODUCTION for Google Play (real ads, signed)
         if: env.HAS_KEY == 'true'
         working-directory: android
         env:
@@ -66,19 +71,33 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew bundleProductionRelease --no-daemon
+
+      - name: Check which ads each build shows
+        working-directory: android/app/build/outputs
         run: |
-          # the store build shows REAL ads (the test APK above keeps Google's test ads)
-          sed -i 's/  testing: true,/  testing: false,/' ../www/src/systems/Ads.js
-          grep -q "  testing: false," ../www/src/systems/Ads.js
-          cd .. && npx cap copy android && cd android
-          ./gradlew bundleRelease --no-daemon
+          unzip -p apk/testing/debug/app-testing-debug.apk assets/public/env.js | tee /dev/stderr | grep -q "APP_ENV = 'test'"
+          echo "TEST apk: test ads ✔"
+          if [ -f bundle/productionRelease/app-production-release.aab ]; then
+            unzip -p bundle/productionRelease/app-production-release.aab base/assets/public/env.js | tee /dev/stderr | grep -q "APP_ENV = 'production'"
+            echo "PRODUCTION aab: real ads ✔"
+          fi
+
+      - name: Check the PRODUCTION build works (no key yet; built and thrown away, never uploaded)
+        if: env.HAS_KEY != 'true'
+        working-directory: android
+        run: |
+          ./gradlew assembleProductionDebug --no-daemon
+          unzip -p app/build/outputs/apk/production/debug/app-production-debug.apk assets/public/env.js | grep -q "APP_ENV = 'production'"
+          echo "PRODUCTION build: real ads ✔ (file deleted)"
+          rm -rf app/build/outputs/apk/production
 
       - name: Name the files
         run: |
           mkdir -p out
-          cp android/app/build/outputs/apk/debug/app-debug.apk "out/mini-kingdoms-test-${VERSION_NAME}.apk"
-          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
-            cp android/app/build/outputs/bundle/release/app-release.aab "out/mini-kingdoms-store-${VERSION_NAME}.aab"
+          cp android/app/build/outputs/apk/testing/debug/app-testing-debug.apk "out/mini-kingdoms-TEST-${VERSION_NAME}.apk"
+          if [ -f android/app/build/outputs/bundle/productionRelease/app-production-release.aab ]; then
+            cp android/app/build/outputs/bundle/productionRelease/app-production-release.aab "out/mini-kingdoms-PRODUCTION-${VERSION_NAME}.aab"
           fi
           ls -la out
 
