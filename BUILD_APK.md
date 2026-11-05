@@ -25,7 +25,7 @@ GitHub يبنيه تلقائياً بعد كل رفع، ولا تحتاج تثب
 لبناء جديد بدون تعديل: Actions → Android build → **Run workflow**.
 
 ## نسختان: TEST و PRODUCTION
-| | TEST (`testing`) | PRODUCTION (`production`) |
+| | TEST (`dev`) | PRODUCTION (`production`) |
 |---|---|---|
 | الملف | `mini-kingdoms-TEST-1.0.X.apk` | `mini-kingdoms-PRODUCTION-1.0.X.aab` |
 | لمن | هاتفك للتجربة | Google Play |

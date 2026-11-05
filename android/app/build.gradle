@@ -18,12 +18,12 @@ android {
         }
     }
     // Two versions of the app:
-    //   testing     "الممالك الصغيرة TEST", id com.minikingdoms.game.test, Google's TEST ads only,
+    //   dev         "الممالك الصغيرة TEST", id com.minikingdoms.game.test, Google's TEST ads only,
     //               a TEST badge and icon. Installs next to the store version.
     //   production  the store version (Google Play), your REAL ads.
     flavorDimensions = ["env"]
     productFlavors {
-        testing {
+        dev {                   // (Android doesn't allow flavor names starting with "test")
             dimension "env"
             applicationIdSuffix ".test"
             versionNameSuffix "-test"

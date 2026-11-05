@@ -10,7 +10,7 @@
         android:theme="@style/AppTheme"
         android:hardwareAccelerated="true">
 
-        <!-- AdMob app id: yours in the production build, Google's sample id in the testing build (app/build.gradle) -->
+        <!-- AdMob app id: yours in the production build, Google's sample id in the dev (TEST) build (app/build.gradle) -->
         <meta-data
             android:name="com.google.android.gms.ads.APPLICATION_ID"
             android:value="${admobAppId}"/>
