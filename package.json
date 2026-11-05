@@ -1,0 +1,19 @@
+{
+  "name": "mini-kingdoms",
+  "version": "1.0.0",
+  "private": true,
+  "description": "Mini Kingdoms - 2D strategy game (Phaser 3) packaged for Android with Capacitor",
+  "scripts": {
+    "sync": "cap sync android"
+  },
+  "dependencies": {
+    "@capacitor-community/admob": "8.2.1",
+    "@capacitor-community/keep-awake": "8.0.1",
+    "@capacitor/android": "8.5.3",
+    "@capacitor/app": "8.1.2",
+    "@capacitor/core": "8.5.3"
+  },
+  "devDependencies": {
+    "@capacitor/cli": "8.5.3"
+  }
+}

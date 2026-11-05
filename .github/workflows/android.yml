@@ -1,0 +1,81 @@
+# Builds the Android app on GitHub's servers every time the game is pushed.
+# The APK appears under Actions -> the run -> "Artifacts" (download, unzip, install on the phone).
+# With the 4 signing secrets set (see BUILD_APK.md) it also builds the signed
+# store files: app-release.aab (Google Play) and app-release.apk.
+name: Android build
+
+on:
+  push:
+    branches: [mini-kingdoms, main]
+  workflow_dispatch:
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    env:
+      VERSION_CODE: ${{ github.run_number }}
+      VERSION_NAME: 1.0.${{ github.run_number }}
+      HAS_KEY: ${{ secrets.KEYSTORE_BASE64 != '' }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+          cache: gradle
+
+      - uses: android-actions/setup-android@v3
+
+      - name: Install Capacitor
+        run: npm ci
+
+      - name: Copy the game into the Android project
+        run: npx cap sync android
+
+      - name: Build the test APK
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew assembleDebug --no-daemon
+
+      - name: Signing key (only when the secrets exist)
+        id: key
+        if: env.HAS_KEY == 'true'
+        env:
+          KS: ${{ secrets.KEYSTORE_BASE64 }}
+        run: |
+          echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
+          echo "file=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
+
+      - name: Build the signed store release
+        if: env.HAS_KEY == 'true'
+        working-directory: android
+        env:
+          KEYSTORE_FILE: ${{ steps.key.outputs.file }}
+          KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
+          KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
+          KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
+        run: ./gradlew bundleRelease assembleRelease --no-daemon
+
+      - name: Name the files
+        run: |
+          mkdir -p out
+          cp android/app/build/outputs/apk/debug/app-debug.apk "out/mini-kingdoms-test-${VERSION_NAME}.apk"
+          if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/mini-kingdoms-${VERSION_NAME}.aab"
+            cp android/app/build/outputs/apk/release/app-release.apk "out/mini-kingdoms-${VERSION_NAME}.apk"
+          fi
+          ls -la out
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: mini-kingdoms-${{ env.VERSION_NAME }}
+          path: out/*
+          retention-days: 30
