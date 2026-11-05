@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- start screen on Android 11 and older: dark background with the emblem in the middle (never stretched) -->
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item><color android:color="#1C120C"/></item>
+    <item android:width="180dp" android:height="180dp" android:gravity="center" android:drawable="@drawable/splash_emblem"/>
+</layer-list>

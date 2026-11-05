@@ -99,7 +99,7 @@ class Menu {
     this.screen(`
       <div class="m-title">
         <div class="m-logo">
-          <div class="castle-art"><img src="assets/castle_art.png" alt=""></div>
+          <div class="emblem"><img src="assets/emblem.png" alt=""></div>
           <div class="m-crowns">${ALL_COLORS.map(c => icon(`keep_${c}`, 0, 44)).join('')}</div>
           <h1>${t('الممالك الصغيرة')}</h1>
           <p>${t('ابنِ مملكتك، اجمع الموارد، وقُد جيشك مع حلفائك')}</p>
