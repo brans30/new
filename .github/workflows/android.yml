@@ -1,7 +1,7 @@
 # Builds the Android app on GitHub's servers every time the game is pushed.
 # The APK appears under Actions -> the run -> "Artifacts" (download, unzip, install on the phone).
 # With the 4 signing secrets set (see BUILD_APK.md) it also builds the signed
-# store files: app-release.aab (Google Play) and app-release.apk.
+# store file for Google Play (.aab) with REAL ads.
 name: Android build
 
 on:
@@ -66,15 +66,19 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew bundleRelease assembleRelease --no-daemon
+        run: |
+          # the store build shows REAL ads (the test APK above keeps Google's test ads)
+          sed -i 's/  testing: true,/  testing: false,/' ../www/src/systems/Ads.js
+          grep -q "  testing: false," ../www/src/systems/Ads.js
+          cd .. && npx cap copy android && cd android
+          ./gradlew bundleRelease --no-daemon
 
       - name: Name the files
         run: |
           mkdir -p out
           cp android/app/build/outputs/apk/debug/app-debug.apk "out/mini-kingdoms-test-${VERSION_NAME}.apk"
           if [ -f android/app/build/outputs/bundle/release/app-release.aab ]; then
-            cp android/app/build/outputs/bundle/release/app-release.aab "out/mini-kingdoms-${VERSION_NAME}.aab"
-            cp android/app/build/outputs/apk/release/app-release.apk "out/mini-kingdoms-${VERSION_NAME}.apk"
+            cp android/app/build/outputs/bundle/release/app-release.aab "out/mini-kingdoms-store-${VERSION_NAME}.aab"
           fi
           ls -la out
 

@@ -193,4 +193,5 @@ export const EN = {
   'تلقائي: تختار اللعبة حسب سرعة هاتفك': 'Auto: the game picks what your phone can handle',
   'المنخفضة أسرع وتوفر البطارية: بدون إضاءة ليلية وسحب وطقس': 'Low is faster and saves battery: no night lights, clouds or weather',
   'خُفِّضت جودة الرسوم لتعمل اللعبة بسلاسة': 'Graphics quality lowered so the game runs smoothly',
+  'الخصوصية': 'Privacy', 'خيارات الخصوصية والإعلانات': 'Privacy & ad choices',
 };

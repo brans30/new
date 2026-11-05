@@ -290,6 +290,8 @@ class Menu {
                 .map(([k, n]) => `<button class="${quality.pref === k ? 'on' : ''}" data-q="${k}">${n}</button>`).join('')}
             </div>
             <p class="m-tip">${quality.pref === 'auto' ? `${t('تلقائي: تختار اللعبة حسب سرعة هاتفك')} (${t('الآن')}: ${{ high: t('عالية'), medium: t('متوسطة'), low: t('منخفضة') }[quality.level]})` : t('المنخفضة أسرع وتوفر البطارية: بدون إضاءة ليلية وسحب وطقس')}</p></section>
+          ${ads.privacyRequired ? `<section class="m-sec"><h3><b>🔒</b> ${t('الخصوصية')}</h3>
+            <button class="mbtn pill" id="s-privacy">${t('خيارات الخصوصية والإعلانات')}</button></section>` : ''}
         </div>
       </div>`);
     $('m-back').onclick = () => this.showTitle();
@@ -298,6 +300,7 @@ class Menu {
     $('s-sfx').oninput = (e) => sfx.setVolume('sfx', e.target.value / 100);
     $('s-sfx').onchange = () => sfx.ui('choose');
     $('s-amb').oninput = (e) => sfx.setVolume('amb', e.target.value / 100);
+    $('s-privacy')?.addEventListener('click', () => ads.showPrivacy());
     $('s-quality').querySelectorAll('[data-q]').forEach(b => b.onclick = () => { quality.set(b.dataset.q); this.showSettings(); });
   }
 

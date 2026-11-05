@@ -53,8 +53,26 @@ class Ads {
   async init() {
     const A = plugin();
     if (!A || this.ready) return;
-    try { await A.initialize({ initializeForTesting: AD_CONFIG.testing }); this.ready = true; this.preload('rewarded'); this.preload('interstitial'); }
-    catch (e) { console.warn('[ads] init failed', e); }
+    try {
+      await A.initialize({ initializeForTesting: AD_CONFIG.testing });
+      await this.consent(A);
+      this.ready = true; this.preload('rewarded'); this.preload('interstitial');
+    } catch (e) { console.warn('[ads] init failed', e); }
+  }
+
+  // Privacy consent (Google's message, needed for players in Europe / the UK; set it up once in
+  // AdMob -> Privacy & messaging). Asked once; elsewhere nothing is shown.
+  async consent(A) {
+    try {
+      let info = await A.requestConsentInfo();
+      if (!info.canRequestAds && info.isConsentFormAvailable && info.status === 'REQUIRED') info = await A.showConsentForm();
+      this.privacyRequired = info.privacyOptionsRequirementStatus === 'REQUIRED';
+    } catch (e) { /* no consent message set up: ads still load */ }
+  }
+
+  // the settings button "privacy options" (only where the law needs it)
+  async showPrivacy() {
+    try { await plugin()?.showPrivacyOptionsForm(); } catch (e) { /* nothing to show */ }
   }
 
   async preload(kind) {
