@@ -1,7 +1,8 @@
 # Builds the Android app on GitHub's servers every time the game is pushed.
 # TEST:       mini-kingdoms-TEST-1.0.X.apk  - install on your phone; Google's test ads only.
-# PRODUCTION: mini-kingdoms-PRODUCTION-1.0.X.aab - upload to Google Play; your real ads
-#             (built only when the 4 signing secrets are set, see PLAY_STORE.md).
+# BETA:       mini-kingdoms-BETA-closed-testing-1.0.X.aab - Google Play closed testing; test ads only.
+# PRODUCTION: mini-kingdoms-PRODUCTION-1.0.X.aab - Google Play for everyone; your real ads.
+#             (both built only when the 4 signing secrets are set, see PLAY_STORE.md)
 # Both appear under Actions -> the run -> "Artifacts".
 name: Android build
 
@@ -63,7 +64,7 @@ jobs:
           echo "$KS" | base64 -d > "$RUNNER_TEMP/release.jks"
           echo "file=$RUNNER_TEMP/release.jks" >> "$GITHUB_OUTPUT"
 
-      - name: Build PRODUCTION for Google Play (real ads, signed)
+      - name: Build BETA (closed testing, test ads) and PRODUCTION (everyone, real ads), signed
         if: env.HAS_KEY == 'true'
         working-directory: android
         env:
@@ -71,7 +72,7 @@ jobs:
           KEYSTORE_PASSWORD: ${{ secrets.KEYSTORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: ./gradlew bundleProductionRelease --no-daemon
+        run: ./gradlew bundleBetaRelease bundleProductionRelease --no-daemon
 
       - name: Check which ads each build shows
         working-directory: android/app/build/outputs
@@ -81,16 +82,19 @@ jobs:
           if [ -f bundle/productionRelease/app-production-release.aab ]; then
             unzip -p bundle/productionRelease/app-production-release.aab base/assets/public/env.js | tee /dev/stderr | grep -q "APP_ENV = 'production'"
             echo "PRODUCTION aab: real ads ✔"
+            unzip -p bundle/betaRelease/app-beta-release.aab base/assets/public/env.js | tee /dev/stderr | grep -q "APP_ENV = 'beta'"
+            echo "BETA aab: test ads ✔"
           fi
 
       - name: Check the PRODUCTION build works (no key yet; built and thrown away, never uploaded)
         if: env.HAS_KEY != 'true'
         working-directory: android
         run: |
-          ./gradlew assembleProductionDebug --no-daemon
+          ./gradlew assembleProductionDebug assembleBetaDebug --no-daemon
           unzip -p app/build/outputs/apk/production/debug/app-production-debug.apk assets/public/env.js | grep -q "APP_ENV = 'production'"
-          echo "PRODUCTION build: real ads ✔ (file deleted)"
-          rm -rf app/build/outputs/apk/production
+          unzip -p app/build/outputs/apk/beta/debug/app-beta-debug.apk assets/public/env.js | grep -q "APP_ENV = 'beta'"
+          echo "PRODUCTION build: real ads ✔, BETA build: test ads ✔ (files deleted)"
+          rm -rf app/build/outputs/apk/production app/build/outputs/apk/beta
 
       - name: Name the files
         run: |
@@ -98,6 +102,7 @@ jobs:
           cp android/app/build/outputs/apk/dev/debug/app-dev-debug.apk "out/mini-kingdoms-TEST-${VERSION_NAME}.apk"
           if [ -f android/app/build/outputs/bundle/productionRelease/app-production-release.aab ]; then
             cp android/app/build/outputs/bundle/productionRelease/app-production-release.aab "out/mini-kingdoms-PRODUCTION-${VERSION_NAME}.aab"
+            cp android/app/build/outputs/bundle/betaRelease/app-beta-release.aab "out/mini-kingdoms-BETA-closed-testing-${VERSION_NAME}.aab"
           fi
           ls -la out
 

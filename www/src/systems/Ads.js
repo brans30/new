@@ -19,8 +19,8 @@
 // =====================================================================
 import { t } from '../i18n.js';
 
-// TEST build (env.js says 'test'): Google's official test units, always.
-// PRODUCTION build (the store .aab): your real units.
+// TEST build (env.js says 'test') and the testers' BETA build ('beta'): Google's official test units, always.
+// PRODUCTION build (the store .aab for everyone): your real units.
 export const IS_PRODUCTION = window.APP_ENV === 'production';
 
 const REAL = {

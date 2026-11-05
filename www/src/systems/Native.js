@@ -43,7 +43,7 @@ function onBack() {
 export function initNative() {
   if (!isNative()) return;
   document.body.classList.add('native');
-  if (window.APP_ENV !== 'production') document.body.classList.add('env-test');     // the TEST badge (Android test build only)
+  if (window.APP_ENV === 'test') document.body.classList.add('env-test');     // the TEST badge (your test app only; testers' beta has none)
   const App = nativePlugin('App');
   if (!App) return;
   try {

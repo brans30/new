@@ -25,16 +25,16 @@ GitHub يبنيه تلقائياً بعد كل رفع، ولا تحتاج تثب
 لبناء جديد بدون تعديل: Actions → Android build → **Run workflow**.
 
 ## نسختان: TEST و PRODUCTION
-| | TEST (`dev`) | PRODUCTION (`production`) |
-|---|---|---|
-| الملف | `mini-kingdoms-TEST-1.0.X.apk` | `mini-kingdoms-PRODUCTION-1.0.X.aab` |
-| لمن | هاتفك للتجربة | Google Play |
-| الاسم | الممالك TEST (شريط أحمر على الأيقونة، وشارة TEST في اللعبة) | الممالك الصغيرة |
-| المعرّف | `com.minikingdoms.game.test` (تُثبَّت بجانب نسخة المتجر) | `com.minikingdoms.game` |
-| الإعلانات | معرّفات Google التجريبية فقط | معرّفاتك الحقيقية |
+| | TEST (`dev`) | BETA (`beta`) | PRODUCTION (`production`) |
+|---|---|---|---|
+| الملف | `mini-kingdoms-TEST-1.0.X.apk` | `mini-kingdoms-BETA-closed-testing-1.0.X.aab` | `mini-kingdoms-PRODUCTION-1.0.X.aab` |
+| لمن | هاتفك للتجربة | المختبرون (Closed testing) | الجميع (Production) |
+| الاسم | الممالك TEST (شريط أحمر وشارة TEST) | الممالك الصغيرة | الممالك الصغيرة |
+| المعرّف | `com.minikingdoms.game.test` | `com.minikingdoms.game` | `com.minikingdoms.game` |
+| الإعلانات | تجريبية | تجريبية | حقيقية |
 
-كيف تعمل: ملف `www/env.js` يقول دائماً `test`، ونسخة الإنتاج وحدها تستبدله بـ
-`android/app/src/production/assets/public/env.js`. كل بناء يفحص الملفات الناتجة بنفسه ويتوقف إذا اختلط شيء.
+كيف تعمل: ملف `www/env.js` يقول دائماً `test`، وتستبدله نسخة BETA بـ `android/app/src/beta/assets/public/env.js` (`beta`)
+ونسخة الإنتاج وحدها بـ `android/app/src/production/assets/public/env.js` (`production`). كل بناء يفحص الملفات الناتجة بنفسه ويتوقف إذا اختلط شيء.
 معرّفات الإعلانات في `www/src/systems/Ads.js` (REAL و TEST).
 
 ## النسخة الموقّعة للمتجر (Google Play) — لاحقاً

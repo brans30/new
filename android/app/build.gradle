@@ -8,7 +8,9 @@ android {
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         // every GitHub build gets a higher number (the store needs it to grow)
-        versionCode((System.getenv("VERSION_CODE") ?: "1").toInteger())
+        // production = build number x 2, the testers' beta of the same build = one less,
+        // so a store release is always newer than the beta it came after
+        versionCode((System.getenv("VERSION_CODE") ?: "1").toInteger() * 2)
         versionName System.getenv("VERSION_NAME") ?: "1.0"
         testInstrumentationRunner "androidx.test.runner.AndroidJUnitRunner"
         aaptOptions {
@@ -20,13 +22,21 @@ android {
     // Two versions of the app:
     //   dev         "الممالك الصغيرة TEST", id com.minikingdoms.game.test, Google's TEST ads only,
     //               a TEST badge and icon. Installs next to the store version.
-    //   production  the store version (Google Play), your REAL ads.
+    //   beta        for Google Play CLOSED TESTING: same app id and name as the store version,
+    //               but Google's TEST ads, so testers' clicks never touch your AdMob account.
+    //   production  the store version for everyone (Google Play), your REAL ads.
     flavorDimensions = ["env"]
     productFlavors {
         dev {                   // (Android doesn't allow flavor names starting with "test")
             dimension "env"
             applicationIdSuffix ".test"
             versionNameSuffix "-test"
+            manifestPlaceholders = [admobAppId: "ca-app-pub-3940256099942544~3347511713"]   // Google's sample app id
+        }
+        beta {
+            dimension "env"
+            versionNameSuffix "-beta"
+            versionCode((System.getenv("VERSION_CODE") ?: "1").toInteger() * 2 - 1)
             manifestPlaceholders = [admobAppId: "ca-app-pub-3940256099942544~3347511713"]   // Google's sample app id
         }
         production {

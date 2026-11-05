@@ -11,9 +11,15 @@
 | `KEY_ALIAS` | `minikingdoms` |
 | `KEY_PASSWORD` | كلمة السر نفسها |
 
-ثم **Actions ← Android build ← Run workflow**. سيخرج في Artifacts ملفان:
-- `mini-kingdoms-TEST-1.0.X.apk` — **نسخة الاختبار** لهاتفك: اسمها "الممالك TEST" وعلى أيقونتها شريط أحمر، إعلانات Google التجريبية فقط، وتُثبَّت بجانب نسخة المتجر.
-- `mini-kingdoms-PRODUCTION-1.0.X.aab` — **نسخة الإنتاج** للمتجر: إعلاناتك الحقيقية. لا تثبّتها ولا تضغط على إعلاناتك أبداً.
+بعد كل بناء تخرج في Artifacts ثلاثة ملفات:
+
+| الملف | لمن | الإعلانات |
+|---|---|---|
+| `mini-kingdoms-TEST-1.0.X.apk` | هاتفك أنت ("الممالك TEST"، شريط أحمر على الأيقونة) | تجريبية |
+| `mini-kingdoms-BETA-closed-testing-1.0.X.aab` | **المختبرون** في Google Play (Closed testing) | تجريبية — يضغطون كما يشاؤون بلا خطر |
+| `mini-kingdoms-PRODUCTION-1.0.X.aab` | **الجميع** في Google Play (Production) | إعلاناتك الحقيقية |
+
+رقم إصدار PRODUCTION دائماً أكبر من BETA في نفس البناء، فيقبله المتجر بعد BETA.
 
 ⚠️ احفظ `mini-kingdoms-upload.jks` و `secrets.txt` في مكان آمن خاص. هذا "مفتاح الرفع":
 إذا ضاع يمكن طلب مفتاح جديد من Google لأن التطبيق يستخدم Play App Signing، لكن ذلك يأخذ أياماً.
@@ -41,8 +47,10 @@ https://play.google.com/console — رسوم مرة واحدة (25$). الحسا
 - **Content rating**: استبيان IARC — عنف كرتوني خفيف (معارك بشخصيات صغيرة، بلا دم).
 
 ## 6) الرفع
-**Testing ← Closed testing** (أو Production) ← **Create new release** ← ارفع `mini-kingdoms-PRODUCTION-1.0.X.aab`.
-كل بناء جديد رقمه أكبر تلقائياً.
+- **الاختبار المغلق (14 يوماً، 12 مختبِراً):** Testing ← Closed testing ← Create new release ← ارفع `mini-kingdoms-BETA-closed-testing-1.0.X.aab`.
+- **النشر للجميع (بعد موافقة Google):** Production ← Create new release ← ارفع `mini-kingdoms-PRODUCTION-1.0.X.aab`
+  (من آخر بناء). ⚠️ لا تستخدم زر Promote release لنسخة BETA — فهي بإعلانات تجريبية.
+- كل بناء جديد رقمه أكبر تلقائياً.
 
 ## 7) ربط AdMob بالمتجر
 بعد النشر: في AdMob ← Apps ← التطبيق ← **App settings ← Link to app store**. الإعلانات الحقيقية تبدأ بعد مراجعة AdMob (يوم إلى أيام).
