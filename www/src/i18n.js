@@ -9,7 +9,20 @@
 import { EN } from './lang/en.js';
 
 const KEY = 'mk.lang';
-const read = () => { try { return localStorage.getItem(KEY) === 'en' ? 'en' : 'ar'; } catch (e) { return 'ar'; } };
+// First start (nothing chosen yet): the phone's language decides — Arabic phone -> Arabic,
+// any other language -> English. After that the choice in the settings is kept.
+const phoneLang = () => {
+  const list = [...(navigator.languages || []), navigator.language || ''];
+  return list.some(l => /^ar\b/i.test(l)) ? 'ar' : 'en';
+};
+const read = () => {
+  let saved = null;
+  try { saved = localStorage.getItem(KEY); } catch (e) { /* no storage */ }
+  if (saved === 'en' || saved === 'ar') return saved;
+  const l = phoneLang();
+  try { localStorage.setItem(KEY, l); } catch (e) { /* no storage */ }
+  return l;
+};
 export const LANG = read();
 export const isEn = LANG === 'en';
 
@@ -42,7 +55,7 @@ export function translatePage(root = document.body) {
   const walk = document.createTreeWalker(root, NodeFilter.SHOW_TEXT);
   for (let n = walk.nextNode(); n; n = walk.nextNode()) if (/[؀-ۿ]/.test(n.nodeValue)) n.nodeValue = t(n.nodeValue);
   for (const el of root.querySelectorAll('[aria-label]')) el.setAttribute('aria-label', t(el.getAttribute('aria-label')));
-  document.title = 'Mini Kingdom';
+  document.title = 'Mini Kingdoms';
 }
 
 window.__i18n = { missing, LANG };

@@ -68,7 +68,7 @@ export function generateMap(scene) {
       const w = scene.spawnUnit('worker', k.color, keep.x + dir * (26 + i * 10), keep.y + 22 * vy);
       if (!k.ai) w.autoAssign();
     }
-    if (k.ai) [['swordsman', 26, -12], ['swordsman', 26, 8], ['bowman', 8, -24 * vy]].forEach(([kind, dx, dy]) =>
+    if (k.ai && !MATCH.tutorial) [['swordsman', 26, -12], ['swordsman', 26, 8], ['bowman', 8, -24 * vy]].forEach(([kind, dx, dy]) =>
       scene.spawnUnit(kind, k.color, keep.x + dir * dx, keep.y + dy));
   }
 }

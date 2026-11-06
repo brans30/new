@@ -24,6 +24,7 @@ import { ads } from '../systems/Ads.js';
 import { HeroSkills, SKILLS } from '../systems/HeroSkills.js';
 import { quality } from '../systems/Quality.js';
 import { keepAwake } from '../systems/KeepAwake.js';
+import { tutorial } from '../ui/Tutorial.js';
 
 // melee kinds that swing a blade (metal clang); the rest thump
 const SWORDS = new Set(['swordsman', 'knight', 'arthax', 'kanji', 'assassin']);
@@ -110,6 +111,8 @@ export class GameScene extends Phaser.Scene {
 
     this.recountPop();
     hud.attach(this);
+    this.tutorialHold = false;
+    if (MATCH.tutorial) tutorial.attach(this);        // the first-time lesson
   }
 
   // ================= WORLD OBJECTS =================
@@ -399,7 +402,7 @@ export class GameScene extends Phaser.Scene {
     if (won) this.fx?.fireworks([KINGDOMS[TEAM.PLAYER].css, '#ffd84a', '#ffffff', '#ff7a5a']);
     sfx.ui(won ? 'victory' : 'defeat');
     if (won && MATCH.campaign) completeStage(MATCH.campaign);       // the next stage opens
-    this.adDue = ads.battleEnded(!!MATCH.campaign);                // a full-screen ad before the result box?
+    this.adDue = MATCH.tutorial ? false : ads.battleEnded(!!MATCH.campaign);   // no ads in the lesson                // a full-screen ad before the result box?
     keepAwake.off();
     this.events.emit('gameover', won, survived);
   }
@@ -783,6 +786,7 @@ export class GameScene extends Phaser.Scene {
     this.assignBuilders(b, selected.length ? selected : null);
     this.dust(b.x, b.y + 6);
     sfx.ui('place');
+    this.events.emit('tut', 'placed', kind);
     this.cancelPlacing();
   }
 
@@ -902,6 +906,7 @@ export class GameScene extends Phaser.Scene {
     }
     if (hit instanceof ResourceNode && workers.length) {
       workers.forEach(w => w.command({ type: 'gather', node: hit }));
+      this.events.emit('tut', 'gather', hit.type);
       if (soldiers.length) this.commandGroup(soldiers, wx, wy, 'move');
       return this.ping(hit.x, hit.y, 0xffe066);
     }
@@ -918,6 +923,7 @@ export class GameScene extends Phaser.Scene {
       const fighting = myUnits.some(u => u.state === 'attack');
       const order = anyHold || (fighting && !enemyNear) ? 'move' : 'attackMove';
       this.commandGroup(myUnits, wx, wy, order);
+      this.events.emit('tut', 'move');
       if (order === 'move') myUnits.forEach(u => { u.calmAfterMove = true; });
       this.showFormationPreview(myUnits.filter(u => u instanceof Soldier), wx, wy);
       return sfx.ui('order'), this.fx.marker(wx, wy, false);
@@ -1028,7 +1034,7 @@ export class GameScene extends Phaser.Scene {
       for (const u of this.units) { try { u.update(time, dt); } catch (e) { this.reportError(e, 'unit', u); } }
       for (const b of this.buildings) { try { b.update(time, dt); } catch (e) { this.reportError(e, 'building', b); } }
       for (const t of TEAMS) { try { this.workerMgr[t].update(dt); } catch (e) { this.reportError(e, 'workers'); } }
-      for (const a of Object.values(this.ais)) { try { a.update(time, dt); } catch (e) { this.reportError(e, 'ai ' + a.team); } }
+      for (const a of Object.values(this.ais)) { if (this.tutorialHold) break; try { a.update(time, dt); } catch (e) { this.reportError(e, 'ai ' + a.team); } }
       if ((this.mineT = (this.mineT || 0) + dt) > 1000) { this.mineT = 0; for (const n of this.nodes) n.checkOwner?.(time); }
     }
 

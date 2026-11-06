@@ -63,10 +63,11 @@ export const DIFFICULTY = {
     startBonus: { gold: 150, wood: 150, stone: 80 }, wallsAt: 2, retreatAt: 0.45 },
 };
 
-// Every ENEMY of the player is 50% stronger than its difficulty level says (allies are not):
-// 50% more income, decides 1.5x as often, attacks 1.5x sooner and more often,
-// its attack force grows 1.5x faster and it keeps more workers.
-export const ENEMY_BOOST = 1.5;
+// Every ENEMY of the player is 20% stronger than its difficulty level says (allies are not):
+// 20% more income, decides 1.2x as often, attacks 1.2x sooner and more often,
+// its attack force grows 1.2x faster and it keeps 10% more workers.
+// (It was 50% before; the player asked for 20% less on every level: 1.5 x 0.8 = 1.2.)
+export const ENEMY_BOOST = 1.2;         // was 1.5; lowered by 20% (1.5 x 0.8) on every level
 export function boosted(cfg, k = ENEMY_BOOST) {
   return { ...cfg,
     incomeBonus: cfg.incomeBonus * k,
@@ -74,7 +75,7 @@ export function boosted(cfg, k = ENEMY_BOOST) {
     minFirstAttack: Math.round(cfg.minFirstAttack / k),
     maxWaitBetweenAttacks: Math.round(cfg.maxWaitBetweenAttacks / k),
     armyGrowth: Math.round(cfg.armyGrowth * k * 10) / 10,
-    workerCap: Math.round(cfg.workerCap * 1.25),
+    workerCap: Math.round(cfg.workerCap * (1 + (k - 1) / 2)),
   };
 }
 

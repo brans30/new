@@ -1,4 +1,5 @@
 import { t } from '../i18n.js';
+import { tutorialSeen, markTutorial } from './Tutorial.js';
 import { quality } from '../systems/Quality.js';
 import { ALL_COLORS, KINGDOMS, DIFFICULTY, TILE, RESOURCE_NODES, RACES } from '../data/config.js';
 import { MAPS } from '../data/maps.js';
@@ -113,6 +114,21 @@ class Menu {
       </div>`);
     $('m-direct').onclick = () => this.showDirect();
     $('m-camp').onclick = () => this.showCampaign();
+    // the very first time: offer the short lesson (once; Settings can start it again)
+    if (!tutorialSeen()) {
+      const ask = document.createElement('div');
+      ask.className = 'tut-ask';
+      ask.innerHTML = `<div class="tut-ask-box">
+          <div class="tut-ask-ic">🎓</div>
+          <h3>${t('أول مرة هنا؟')}</h3>
+          <p>${t('درس تفاعلي قصير (٣ دقائق) يعلّمك كل شيء: الموارد، والبناء، والجيش، والهجوم.')}</p>
+          <button class="mbtn big go" id="tut-yes">▶ ${t('ابدأ التعليم')}</button>
+          <button class="mbtn pill" id="tut-no">${t('تخطَّ، أعرف اللعب')}</button>
+        </div>`;
+      $('menu').appendChild(ask);
+      $('tut-yes').onclick = () => { ask.remove(); this.startTutorial(); };
+      $('tut-no').onclick = () => { markTutorial('skipped'); sfx.ui('click'); ask.classList.add('out'); setTimeout(() => ask.remove(), 250); };
+    }
     $('m-new').onclick = () => this.showSetup();
     $('m-settings').onclick = () => this.showSettings();
   }
@@ -253,6 +269,14 @@ class Menu {
     this.bindAdBonus();
   }
 
+  // the first-time lesson: an easy little battle with a coach (see Tutorial.js)
+  startTutorial() {
+    markTutorial('started');
+    this.launch({ map: 'green', seed: 5, spot: 'random', kingdoms: [
+      { color: 'cyan', alliance: null, difficulty: 'easy' }, { color: 'red', alliance: null, difficulty: 'easy' }] },
+    { tutorial: true, playerRes: 2 });
+  }
+
   startStage(id) {
     const s = stageById(id);
     if (!s || !unlocked(id)) return;
@@ -284,6 +308,8 @@ class Menu {
             <div class="s-vol"><label>⚔️ ${t('المؤثرات')}</label><input type="range" id="s-sfx" min="0" max="100" step="5" value="${Math.round(sfx.sfxVol * 100)}"></div>
             <div class="s-vol"><label>🌿 ${t('الطبيعة')}</label><input type="range" id="s-amb" min="0" max="100" step="5" value="${Math.round(sfx.ambVol * 100)}"></div>
           </section>
+          <section class="m-sec"><h3><b>🎓</b> ${t('تعلّم اللعب')}</h3>
+            <button class="mbtn pill" id="s-tutorial">▶ ${t('ابدأ التعليم')}</button></section>
           <section class="m-sec"><h3><b>🎨</b> ${t('جودة الرسوم')}</h3>
             <div class="seg" id="s-quality">
               ${[['auto', t('تلقائي')], ['high', t('عالية')], ['medium', t('متوسطة')], ['low', t('منخفضة')]]
@@ -301,6 +327,7 @@ class Menu {
     $('s-sfx').onchange = () => sfx.ui('choose');
     $('s-amb').oninput = (e) => sfx.setVolume('amb', e.target.value / 100);
     $('s-privacy')?.addEventListener('click', () => ads.showPrivacy());
+    $('s-tutorial').onclick = () => this.startTutorial();
     $('s-quality').querySelectorAll('[data-q]').forEach(b => b.onclick = () => { quality.set(b.dataset.q); this.showSettings(); });
   }
 
@@ -606,14 +633,14 @@ class Menu {
     if (this.launching) return;
     // the first battle after opening the game: one full-screen ad before it starts
     this.launching = true;
-    try { await ads.beforeFirstBattle(); } finally { this.launching = false; }
+    try { if (!extra.tutorial) await ads.beforeFirstBattle(); } finally { this.launching = false; }   // (no ad before the lesson)
     const spots = this.assignSpots(setup);
     setMatch({
       map: setup.map,
       seed: setup.seed || 1,
       player: setup.kingdoms[0].color,
       kingdoms: setup.kingdoms.map((k, i) => ({ color: k.color, alliance: k.alliance, difficulty: k.difficulty, ai: i > 0, spot: spots[i] })),
-      campaign: null, playerRes: 1, adBonus: !!this.adBonus, ...extra,
+      campaign: null, tutorial: false, playerRes: 1, adBonus: !!this.adBonus, ...extra,
     });
     this.adBonus = false;                     // the ad bonus is for one battle only
     sfx.ui('start');

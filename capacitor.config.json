@@ -1,6 +1,6 @@
 {
   "appId": "com.minikingdoms.game",
-  "appName": "الممالك الصغيرة",
+  "appName": "Mini Kingdoms",
   "webDir": "www",
   "android": {
     "backgroundColor": "#1c120c",

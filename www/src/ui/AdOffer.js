@@ -1,5 +1,5 @@
 import { TEAM, TILE } from '../data/config.js';
-import { hostile } from '../systems/Match.js';
+import { MATCH, hostile } from '../systems/Match.js';
 import { ads } from '../systems/Ads.js';
 import { sfx } from '../systems/Sound.js';
 import { t } from '../i18n.js';
@@ -52,7 +52,7 @@ class AdOffer {
   // what went wrong ('worker' / 'soldier'), or null
   crisis() {
     const s = this.s, now = s.simTime;
-    if (s.over || now < MIN_TIME || this.offers >= MAX_OFFERS || this.declines >= 2 || now - this.lastOffer < COOLDOWN) return null;
+    if (s.over || MATCH.tutorial || now < MIN_TIME || this.offers >= MAX_OFFERS || this.declines >= 2 || now - this.lastOffer < COOLDOWN) return null;
     if (!s.keepOf(TEAM.PLAYER)) return null;
     for (const k of ['worker', 'soldier']) this.lost[k] = this.lost[k].filter(t0 => now - t0 < WINDOW);
     const res = s.economy.res;
