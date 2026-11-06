@@ -6,9 +6,9 @@
 # Both appear under Actions -> the run -> "Artifacts".
 name: Android build
 
+# The game is now a web game (branch gh-pages -> GitHub Pages), so this no longer runs by itself.
+# To build the Android app again: Actions -> Android build -> Run workflow.
 on:
-  push:
-    branches: [mini-kingdoms, main]
   workflow_dispatch:
 
 jobs:
