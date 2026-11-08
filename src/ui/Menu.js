@@ -1,7 +1,7 @@
 import { t } from '../i18n.js';
 import { tutorialSeen, markTutorial } from './Tutorial.js';
 import { quality } from '../systems/Quality.js';
-import { ALL_COLORS, KINGDOMS, DIFFICULTY, TILE, RESOURCE_NODES, RACES } from '../data/config.js';
+import { ALL_COLORS, KINGDOMS, DIFFICULTY, TILE, RESOURCE_NODES, RACES, MINI_COLORS } from '../data/config.js';
 import { MAPS } from '../data/maps.js';
 import { buildMap } from '../systems/MapBuilder.js';
 import { T, SHORES } from '../systems/Terrain.js';
@@ -39,6 +39,18 @@ const PRESETS = {
     { id: '2v2', label: t('٢ ضد ٢'), teams: ['A', 'A', 'B', 'B'] },
     { id: '3v1', label: t('أنت وحليفان ضد واحد'), teams: ['A', 'A', 'A', 'B'] },
     { id: 'alone', label: t('أنت وحدك ضد ٣'), teams: ['A', 'B', 'B', 'B'] },
+  ],
+  5: [
+    { id: 'ffa', label: t('الكل ضد الكل'), teams: [null, null, null, null, null] },
+    { id: '3v2', label: t('٣ ضد ٢'), teams: ['A', 'A', 'A', 'B', 'B'] },
+    { id: '2v3', label: t('أنت وحليف ضد ٣'), teams: ['A', 'A', 'B', 'B', 'B'] },
+    { id: 'alone', label: t('أنت وحدك ضد ٤'), teams: ['A', 'B', 'B', 'B', 'B'] },
+  ],
+  6: [
+    { id: 'ffa', label: t('الكل ضد الكل'), teams: [null, null, null, null, null, null] },
+    { id: '3v3', label: t('٣ ضد ٣'), teams: ['A', 'A', 'A', 'B', 'B', 'B'] },
+    { id: '2v2v2', label: t('٣ فرق من ٢'), teams: ['A', 'A', 'B', 'B', 'C', 'C'] },
+    { id: '4v2', label: t('أنت و٣ حلفاء ضد ٢'), teams: ['A', 'A', 'A', 'A', 'B', 'B'] },
   ],
 };
 
@@ -109,7 +121,7 @@ class Menu {
         <div class="m-col">
           <button class="mbtn big go" id="m-direct">⚔️ ${t('معركة مباشرة')} <small>${t('اختر الخريطة والعدو وابدأ')}</small></button>
           <button class="mbtn big camp" id="m-camp">🏰 ${t('المراحل')} <small>${progress().done.length} / ${STAGES.length} ${t('مرحلة')}</small></button>
-          <button class="mbtn" id="m-new">🛠️ ${t('معركة مخصصة')} <small>${t('حتى ٤ ممالك وحلفاء')}</small></button>
+          <button class="mbtn" id="m-new">🛠️ ${t('معركة مخصصة')} <small>${t('حتى ٦ ممالك وحلفاء')}</small></button>
           <button class="mbtn install ${pwa.canInstall() ? '' : 'hidden'}" id="m-install">📲 ${t('ثبّت اللعبة على هاتفك')} <small>${t('تفتح من الشاشة الرئيسية بملء الشاشة وتعمل بدون إنترنت')}</small></button>
           <button class="mbtn pill m-set" id="m-settings">⚙️ ${t('الإعدادات')} <small>${isEn ? 'English' : t('العربية')}</small></button>
         </div>
@@ -427,7 +439,7 @@ class Menu {
     $('m-maps').querySelectorAll('[data-thumb]').forEach(cv => this.drawMap(cv, cv.dataset.thumb, false));
 
     // 4) count + enemy level
-    $('m-count').innerHTML = [2, 3, 4].map(n => `<button class="${ks.length === n ? 'on' : ''}" data-n="${n}">${n}</button>`).join('');
+    $('m-count').innerHTML = [2, 3, 4, 5, 6].map(n => `<button class="${ks.length === n ? 'on' : ''}" data-n="${n}">${n}</button>`).join('');
     $('m-count').querySelectorAll('[data-n]').forEach(b => b.onclick = () => this.setCount(+b.dataset.n));
     $('m-level').innerHTML = Object.entries(DIFFICULTY).map(([id, d]) => `<button class="${st.enemyLevel === id ? 'on' : ''}" data-lv="${id}">${d.name}</button>`).join('');
     $('m-level').querySelectorAll('[data-lv]').forEach(b => b.onclick = () => this.setEnemyLevel(b.dataset.lv));
@@ -521,7 +533,7 @@ class Menu {
     }
     const L = buildMap(this.state.map, n, this.state.seed);
     if (this.state.spot !== 'random' && this.state.spot >= L.spots.length) this.state.spot = 'random';
-    this.applyPreset(PRESETS[n][n === 4 ? 1 : 0].id);
+    this.applyPreset(PRESETS[n][n >= 4 ? 1 : 0].id);
   }
 
   setEnemyLevel(lv) {
@@ -617,7 +629,7 @@ class Menu {
     L.spots.forEach((p, i) => {
       const cx = p.x + 1, cy = p.y + 1;
       const who = known ? ks.findIndex((k, j) => known[j] === i) : -1;
-      const col = who >= 0 ? KINGDOMS[ks[who].color].css : 'rgba(255,255,255,.85)';
+      const col = who >= 0 ? (MINI_COLORS[ks[who].color] || KINGDOMS[ks[who].color].css) : 'rgba(255,255,255,.85)';
       g.fillStyle = 'rgba(0,0,0,.35)'; g.beginPath(); g.arc(cx, cy + 0.4, 3.2, 0, 7); g.fill();
       g.fillStyle = col; g.beginPath(); g.arc(cx, cy, 3, 0, 7); g.fill();
       g.lineWidth = who === 0 ? 0.8 : 0.4; g.strokeStyle = who === 0 ? '#fff' : '#2b1d12'; g.stroke();

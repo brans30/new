@@ -23,6 +23,9 @@ export const KINGDOMS = {
   orcr:   { name: t('قبيلة الدم'),          short: t('الدم'),      css: '#b8322c', hex: 0xb8322c, race: 'orc' },
   orcy:   { name: t('قبيلة الشمس'),         short: t('الشمس'),     css: '#e0a83a', hex: 0xe0a83a, race: 'orc' },
 };
+// minimap colours: six clearly different, bright colours (the green kingdom's own colour
+// was almost the colour of the grass, and the two red ones looked the same)
+export const MINI_COLORS = { cyan: '#18d8ff', red: '#ff2b2b', lime: '#d8ff1f', purple: '#9d5cff', orcr: '#ff3fbf', orcy: '#ff9d00' };
 
 // ---------------- Peoples ----------------
 // Same buildings and roles for both, with their own look, names and strengths.

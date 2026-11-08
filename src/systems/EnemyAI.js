@@ -128,6 +128,13 @@ export class EnemyAI {
     const armyTooSmall = this.commander.army().length < need * 0.6;
     if (soldiers.length < armyCap && !workersFirst && (!this.saving || underAttack || armyTooSmall)) this.trainArmy(blds, soldiers, underAttack);
 
+    // 6b) catapults for the walls: once the walls stand, a few ballistas guard them from inside
+    const siegeHave = soldiers.filter(u => u.def.siege).length + blds.reduce((n, b) => n + b.queue.filter(k => k === 'ballista').length, 0);
+    if (siegeHave < this.commander.siegeWant() && !workersFirst) {
+      const shop = blds.find(b => b.kind === 'workshop' && b.complete && b.queue.length < 2);
+      if (shop && !this.train(shop, 'ballista') && !underAttack) this.eco.noteShort(UNITS.ballista.cost);
+    }
+
     // 7) defence & attack: the war commander gives every soldier a job
     this.commander.think(soldiers, keep);
   }

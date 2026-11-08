@@ -1,5 +1,5 @@
 // Offline cache for Mini Kingdoms (made by tools/build_web.py — don't edit by hand)
-const VERSION = '390243401899';
+const VERSION = '32e1233222fd';
 const CACHE = 'mk-' + VERSION;
 const FILES = [
 "index.html",

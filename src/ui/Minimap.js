@@ -1,4 +1,4 @@
-import { TILE, MAP_W, MAP_H, KINGDOMS, TEAM } from '../data/config.js';
+import { TILE, MAP_W, MAP_H, KINGDOMS, TEAM, MINI_COLORS } from '../data/config.js';
 import { T, SHORES } from '../systems/Terrain.js';
 
 // =====================================================================
@@ -85,18 +85,26 @@ export class Minimap {
       }
     }
     g.drawImage(this.base, 0, 0);
-    // buildings, then units, in kingdom colours (yours get a light outline)
+    // buildings, then units, in bright minimap colours with a dark edge so they stand out on any ground
+    const colOf = (team) => MINI_COLORS[team] || KINGDOMS[team]?.css || '#fff';
+    g.fillStyle = 'rgba(15,10,6,.85)';
+    for (const b of s.buildings) if (b.alive) g.fillRect(b.tx * S - 1, b.ty * S - 1, b.size * S + 2, b.size * S + 2);
     for (const b of s.buildings) {
       if (!b.alive) continue;
-      const col = KINGDOMS[b.team]?.css || '#fff';
-      g.fillStyle = col;
+      g.fillStyle = colOf(b.team);
       const big = b.size * S;
       g.fillRect(b.tx * S, b.ty * S, big, big);
       if (b.kind === 'keep') { g.strokeStyle = b.team === TEAM.PLAYER ? '#fff' : '#1b130b'; g.lineWidth = 1; g.strokeRect(b.tx * S + 0.5, b.ty * S + 0.5, big - 1, big - 1); }
     }
+    g.fillStyle = 'rgba(15,10,6,.85)';
     for (const u of s.units) {
       if (!u.alive || u.hidden) continue;
-      g.fillStyle = KINGDOMS[u.team]?.css || '#fff';
+      const x = Math.round(u.x / TILE * S), y = Math.round(u.y / TILE * S);
+      g.fillRect(x - 2, y - 2, 4, 4);
+    }
+    for (const u of s.units) {
+      if (!u.alive || u.hidden) continue;
+      g.fillStyle = colOf(u.team);
       const x = Math.round(u.x / TILE * S), y = Math.round(u.y / TILE * S);
       g.fillRect(x - 1, y - 1, 2, 2);
     }

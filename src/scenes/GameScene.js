@@ -219,6 +219,28 @@ export class GameScene extends Phaser.Scene {
     return best;
   }
 
+  // the drop-off with the shortest WALK (not the straightest line: a lake or a wall can be in the way).
+  // The 3 closest by air are compared by real path length.
+  bestDropOff(unit) {
+    const list = [];
+    for (const b of this.buildings)
+      if (b.alive && b.complete && b.team === unit.team && b.def.dropOff) list.push([Math.hypot(unit.x - b.x, unit.y - b.y), b]);
+    if (list.length <= 1) return list[0]?.[1] || null;
+    list.sort((a, b) => a[0] - b[0]);
+    const g = this.grid, sx = Grid.tileOf(unit.x), sy = Grid.tileOf(unit.y);
+    let best = null, bc = Infinity;
+    for (const [air, b] of list.slice(0, 3)) {
+      if (air / TILE > bc) break;                       // can't be shorter than what we have
+      const goal = b.tilesIndex(g.w);
+      const path = g.findPath(sx, sy, b.tx, b.ty, { team: unit.team, goalTiles: goal });
+      const end = path[path.length - 1];
+      const reached = !path.length || goal.has(end.i) || Math.max(Math.abs(end.x - b.tx), Math.abs(end.y - b.ty)) <= b.size;
+      const c = path.length + (reached ? 0 : 80);
+      if (c < bc) { bc = c; best = b; }
+    }
+    return best;
+  }
+
   findDropOff(unit) {
     let best = null, bd = Infinity;
     for (const b of this.buildings) {
@@ -699,8 +721,23 @@ export class GameScene extends Phaser.Scene {
     const others = units.filter(u => !(u instanceof Soldier));
     const slots = formationSlots(soldiers, x, y, formation);
     const groupSpeed = soldiers.length > 1 ? Math.min(...soldiers.map(u => u.def.speed)) : 0;
-    for (const u of soldiers) { const p = slots.get(u); u.command({ type, x: p.x, y: p.y, groupSpeed }); }
+    for (const u of soldiers) { const p = this.snapFree(slots.get(u)); u.command({ type, x: p.x, y: p.y, groupSpeed }); }
     others.forEach((u, i) => u.command({ type: 'move', ...this.formation(x, y, i, others.length) }));
+  }
+
+  // a spot to stand on: if it's inside a tree, a building or water, the nearest free tile next to it
+  // (units sent to stand inside a tree pushed against it forever)
+  snapFree(p) {
+    const g = this.grid, tx = Grid.tileOf(p.x), ty = Grid.tileOf(p.y);
+    if (g.isFree(tx, ty)) return p;
+    let best = null, bd = Infinity;
+    for (let r = 1; r <= 3 && !best; r++)
+      for (let y = ty - r; y <= ty + r; y++) for (let x = tx - r; x <= tx + r; x++) {
+        if (Math.max(Math.abs(x - tx), Math.abs(y - ty)) !== r || !g.isFree(x, y)) continue;
+        const cx = (x + 0.5) * TILE, cy = (y + 0.5) * TILE, d = Math.hypot(cx - p.x, cy - p.y);
+        if (d < bd) { bd = d; best = { x: cx, y: cy }; }
+      }
+    return best || p;
   }
 
   setStance(stance) {
@@ -942,7 +979,7 @@ export class GameScene extends Phaser.Scene {
   formation(x, y, i, n) {
     const cols = Math.ceil(Math.sqrt(n)), sp = 10;
     const cx = i % cols, cy = Math.floor(i / cols);
-    return { x: x + (cx - (cols - 1) / 2) * sp, y: y + (cy - (Math.ceil(n / cols) - 1) / 2) * sp };
+    return this.snapFree({ x: x + (cx - (cols - 1) / 2) * sp, y: y + (cy - (Math.ceil(n / cols) - 1) / 2) * sp });
   }
 
   // brief dots where each soldier will stand
@@ -974,6 +1011,14 @@ export class GameScene extends Phaser.Scene {
       if (!list) cells.set(k, list = []);
       list.push(u);
     }
+    // the pathfinder walks around tiles where units stand still (costs a little more, never blocked)
+    if (!this.grid.crowd) this.grid.crowd = (x, y) => {
+      const list = this.unitCells.get((x & 1023) | ((y & 1023) << 10));
+      if (!list) return 0;
+      let n = 0;
+      for (const u of list) if (!u.anims?.currentAnim?.key?.includes('_walk_')) n++;
+      return n ? Math.min(4, 1 + n) : 0;
+    };
   }
 
   nearUnits(x, y) {

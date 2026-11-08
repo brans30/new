@@ -122,9 +122,17 @@ export class Worker extends Unit {
     return m.assign(this);
   }
 
+  // other workers of ours right at this node (then we're queueing, not blocked)
+  friendsAt(n) {
+    for (const u of this.scene.nearUnits(n.x, n.y)) if (u !== this && u.alive && u.team === this.team && u.node === n && u.edgeDist(n) < 6) return true;
+    return false;
+  }
+
   pickNext(type, maxDist) {
     const m = this.scene.workerMgr[this.team];
-    return m?.pickNode(this, type, maxDist) || this.scene.findNearestNode(this.x, this.y, type, maxDist, this.team);
+    const n = m?.pickNode(this, type, maxDist);
+    if (n && !m.canWalkTo(this, n)) return m.pickReachable(this, type);
+    return n || this.scene.findNearestNode(this.x, this.y, type, maxDist, this.team);
   }
 
   state_gather(time, dt) {
@@ -143,12 +151,15 @@ export class Worker extends Unit {
     if (this.carrying && this.carrying.type !== this.node.type) { this.state = 'return'; return; }
     // walk to the resource; once harvesting, a little push from a neighbour doesn't reset the work
     const gap = this.edgeDist(this.node);
-    if (gap > (this.workStart ? 7 : 3)) {
+    // a busy mine: the workers around it squeeze in, so one right behind them may start too
+    const closeEnough = gap < 9 && this.stalled(900);
+    if (gap > (this.workStart ? 7 : 3) && !closeEnough) {
       this.navigate(this.node.x, this.node.y, dt, this.radius + this.node.radius, this.node);
       this.workStart = 0;
-      // no progress for 3 s (e.g. a tree boxed in behind a wall): give up on it for a minute
+      // no progress for 4 s while still far (a tree boxed in behind a wall): give up on it for a minute.
+      // (Waiting behind other workers right at the node is not "unreachable".)
       if (!this.progress || this.progress.node !== this.node || gap < this.progress.best - 2) this.progress = { node: this.node, best: gap, t: time };
-      else if (time - this.progress.t > 3000) {
+      else if (time - this.progress.t > 4000 && (gap > TILE * 1.5 || !this.friendsAt(this.node))) {
         (this.node.unreachable = this.node.unreachable || {})[this.team] = time + 60000;
         this.node = null; this.path = null; this.progress = null;
         if (!this.autoAssign()) this.state = 'idle';
@@ -172,12 +183,18 @@ export class Worker extends Unit {
   }
 
   state_return(time, dt) {
-    const home = this.scene.findDropOff(this);
+    // pick the drop-off once per trip (by real walking distance) and stick to it:
+    // re-choosing every step made workers walk back and forth between two of them
+    let home = this.dropAt?.alive && this.dropAt.complete ? this.dropAt : null;
+    if (!home) { home = this.dropAt = this.scene.bestDropOff(this); this.path = null; }
     if (!home) { this.state = 'idle'; return; }
-    if (this.edgeDist(home) > 3) {
+    const gap = this.edgeDist(home);
+    // next to it (or right behind other workers handing in their loads for a moment): deliver
+    if (gap > 3 && !(gap < 10 && this.stalled(900))) {
       this.navigate(home.x, home.y, dt, this.radius + home.radius, home);
       return;
     }
+    this.dropAt = null; this.prog = null;
     if (this.carrying) this.scene.deposit(this.team, this.carrying);
     this.carrying = null;
     this.path = null;
@@ -208,7 +225,8 @@ export class Worker extends Unit {
         return;
       }
     }
-    if (this.edgeDist(s) > 3) {
+    const sgap = this.edgeDist(s);
+    if (sgap > 3 && !(sgap < 10 && this.stalled(900))) {
       this.navigate(s.x, s.y, dt, this.radius + s.radius, s);
       return;
     }

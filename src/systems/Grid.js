@@ -58,6 +58,7 @@ export class Grid {
     const start = sy * W + sx, goal = gy * W + gx;
     if (!this.inside(sx, sy) || !this.inside(gx, gy)) return [];
     const isGoal = (i) => i === goal || (goalTiles && goalTiles.has(i));
+    const crowd = this.crowd;
     // the search arrays are kept between calls; a "generation" stamp marks which
     // entries belong to this search, so nothing has to be cleared or allocated
     if (!this.gBuf || this.gBuf.length !== N) {
@@ -95,6 +96,8 @@ export class Grid {
         if (this.terrain && !this.terrain.walkable(nx, ny)) continue;
         let c = isGoal(ni) ? 1 : this.cost(nx, ny, team, canBreak);
         if (c === Infinity) continue;
+        // units standing on a tile (workers at a mine, a guard post): walk around them if it's not much longer
+        if (crowd && !isGoal(ni)) c += crowd(nx, ny);
         if (dx && dy) {
           // no cutting corners past blocked tiles (and never diagonally through walls)
           const c1 = this.cost(cx + dx, cy, team, false), c2 = this.cost(cx, cy + dy, team, false);

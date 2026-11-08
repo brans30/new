@@ -22,7 +22,11 @@ import { MAPS } from '../data/maps.js';
 export const SIZES = {
   2: { w: 68, h: 44, sym: 'x', spots: [[6, 21], [60, 21]] },
   4: { w: 80, h: 60, sym: 'xy', spots: [[8, 8], [70, 8], [8, 50], [70, 50]] },
+  // 5-6 kingdoms: three blocks side by side, two rows. The left block is designed and the
+  // others are mirror copies (middle) or straight copies (right), top and bottom mirrored.
+  6: { w: 102, h: 62, sym: '6', spots: [[16, 8], [50, 8], [84, 8], [16, 52], [50, 52], [84, 52]] },
 };
+export const sizeKey = (players) => (players <= 2 ? 2 : players <= 4 ? 4 : 6);
 
 // tiny seeded random generator (same seed = same map, here and in the preview)
 function rng(seedText) {
@@ -45,7 +49,7 @@ function rng(seedText) {
 
 const cache = new Map();
 export function buildMap(mapId, players, seed = 1) {
-  const key = `${mapId}:${players <= 2 ? 2 : 4}:${seed}`;
+  const key = `${mapId}:${sizeKey(players)}:${seed}`;
   if (!cache.has(key)) cache.set(key, buildFresh(mapId, players, seed));
   return cache.get(key);
 }
@@ -62,7 +66,7 @@ function buildFresh(mapId, players, seed) {
 
 function tryBuild(theme, mapId, players, seedText) {
   const R = rng(seedText);
-  const S = SIZES[players <= 2 ? 2 : 4];
+  const S = SIZES[sizeKey(players)];
   const W = S.w, H = S.h, sym = S.sym;
   const N = W * H;
   const idx = (x, y) => y * W + x;
@@ -73,17 +77,19 @@ function tryBuild(theme, mapId, players, seedText) {
   const clear = new Set();                    // stairs + approach (never built on)
   const spots = S.spots.map(([x, y]) => ({ x, y }));
   const src = spots[0];                       // the spot whose part of the map we design
-  const regionW = sym === 'x' ? W / 2 : W / 2, regionH = sym === 'xy' ? H / 2 : H;
+  const RW = sym === '6' ? W / 3 : W / 2;     // width of the designed block
+  const regionW = RW, regionH = sym === 'x' ? H : H / 2;
   const inRegion = (x, y) => x >= 0 && y >= 0 && x < regionW && y < regionH;
+  // the symmetry: [x transform, y transform, flips left-right?, flips up-down?]
+  const MX = (x) => 2 * RW - 1 - x;           // mirror into the next block
+  const FLIPS = sym === 'x' ? [[(x) => x, (y) => y, 0, 0], [(x) => W - 1 - x, (y) => y, 1, 0]]
+    : sym === 'xy' ? [[(x) => x, (y) => y, 0, 0], [(x) => W - 1 - x, (y) => y, 1, 0], [(x) => x, (y) => H - 1 - y, 0, 1], [(x) => W - 1 - x, (y) => H - 1 - y, 1, 1]]
+    : [0, 1].flatMap(fy => [[(x) => x, 0], [MX, 1], [(x) => 2 * RW + x, 0]].map(([fx, m]) => [fx, fy ? (y) => H - 1 - y : (y) => y, m, fy]));
   // every copy of a tile under the symmetry
-  const copies = (x, y) => {
-    const out = [[x, y], [W - 1 - x, y]];
-    if (sym === 'xy') out.push([x, H - 1 - y], [W - 1 - x, H - 1 - y]);
-    return out;
-  };
+  const copies = (x, y) => FLIPS.map(([fx, fy]) => [fx(x), fy(y)]);
   const center = { x: (W - 1) / 2, y: (H - 1) / 2 };
-  // direction from our spot toward the middle of the map
-  const toMid = { x: Math.sign(center.x - src.x) || 1, y: sym === 'xy' ? Math.sign(center.y - src.y) || 1 : 0 };
+  // direction from our spot toward the middle of the map (6 kingdoms: toward the next block, and down)
+  const toMid = sym === '6' ? { x: 1, y: 1 } : { x: Math.sign(center.x - src.x) || 1, y: sym === 'xy' ? Math.sign(center.y - src.y) || 1 : 0 };
   const kc = { x: src.x + 1, y: src.y + 1 };   // keep centre (in tiles)
   const distSpot = (x, y) => Math.min(...spots.map(s => Math.hypot(x - s.x - 0.5, y - s.y - 0.5)));
 
@@ -93,17 +99,25 @@ function tryBuild(theme, mapId, players, seedText) {
   // ---------- 2) lakes ----------
   const lakes = [];
   const addLake = (circles) => {
-    const flips = sym === 'xy' ? [[0, 0], [1, 0], [0, 1], [1, 1]] : [[0, 0], [1, 0]];
     const seen = new Set();
-    for (const [fx, fy] of flips) {
-      const m = circles.map(([x, y, r]) => [fx ? W - 1 - x : x, fy ? H - 1 - y : y, r]);
+    for (const [fx, fy] of FLIPS) {
+      const m = circles.map(([x, y, r]) => [fx(x), fy(y), r]);
       const k = JSON.stringify(m.map(c => c.map(v => Math.round(v * 10))).sort());
       if (!seen.has(k)) { seen.add(k); lakes.push(m); }
     }
   };
   // a river through the middle, with shallow fords to cross it (2 kingdoms: north-south;
   // 4 kingdoms: a cross that splits the map into four, fords on every arm)
-  if (theme.river) {
+  if (theme.river && sym === '6') {
+    // 6 kingdoms: one river across the middle, a ford in front of every kingdom and between them
+    const rw = theme.river.w, fords = [RW * 0.5, RW, RW * 1.5, RW * 2, RW * 2.5].map(f => f - 0.5);
+    let seg = [];
+    for (let t = -1; t <= W + 1; t += 1.1) {
+      if (fords.some(f => Math.abs(t - f) < 2.4)) { if (seg.length) lakes.push(seg); seg = []; continue; }
+      seg.push([t, center.y, rw * (0.85 + 0.3 * Math.sin(t * 0.45) * Math.sin(t * 0.17 + 1))]);
+    }
+    if (seg.length) lakes.push(seg);
+  } else if (theme.river) {
     const rw = theme.river.w;
     const run = (along, len, fixed, fords, vertical) => {
       let seg = [];
@@ -122,7 +136,8 @@ function tryBuild(theme, mapId, players, seedText) {
   }
   if (theme.midLake) {
     const r = theme.midLake;
-    if (sym === 'xy') addLake([[center.x, center.y, r], [center.x - r * 0.7, center.y, r * 0.65], [center.x + r * 0.7, center.y, r * 0.65]]);
+    if (sym === '6') addLake([[RW / 2 - 0.5, center.y, r], [RW / 2 - 0.5 - r * 0.7, center.y, r * 0.65], [RW / 2 - 0.5 + r * 0.7, center.y, r * 0.65]]);
+    else if (sym === 'xy') addLake([[center.x, center.y, r], [center.x - r * 0.7, center.y, r * 0.65], [center.x + r * 0.7, center.y, r * 0.65]]);
     else addLake([[center.x, H * 0.33, r], [center.x - r * 0.6, H * 0.33 + r * 0.5, r * 0.6], [center.x + r * 0.6, H * 0.33 + r * 0.5, r * 0.6]]);
   }
   for (let i = 0, tries = 0; i < (theme.lakes?.n || 0) && tries < 200; tries++) {
@@ -173,7 +188,7 @@ function tryBuild(theme, mapId, players, seedText) {
     for (const [rx, ry, rw, rh] of rects) for (let y = ry; y < ry + rh; y++) for (let x = rx; x < rx + rw; x++) cells.add(idx(x, y));
     const list = [...cells].map(i2 => [i2 % W, (i2 / W) | 0]);
     // must stay inside our part of the map, away from water, bases and other plateaus
-    if (list.some(([x, y]) => !inRegion(x, y) || x < 1 || y < 1 || x > regionW - 2 || y > regionH - 2 || (sym === 'xy' ? false : y > H - 2))) continue;
+    if (list.some(([x, y]) => !inRegion(x, y) || x < 1 || y < 1 || x > regionW - 2 || y > regionH - 2 || (sym === 'x' ? y > H - 2 : false))) continue;
     if (list.some(([x, y]) => nearWater(x, y, 2) || distSpot(x, y) < 9 || isPlateau[idx(x, y)])) continue;
     if (list.some(([x, y]) => { for (let dy = -3; dy <= 3; dy++) for (let dx = -3; dx <= 3; dx++) if (inMap(x + dx, y + dy) && isPlateau[idx(x + dx, y + dy)]) return true; return false; })) continue;
     // every tile must have a cliff piece that can be drawn
@@ -201,8 +216,7 @@ function tryBuild(theme, mapId, players, seedText) {
     const other = usable.find(f => f.dir !== usable[0].dir || Math.abs(f.x - usable[0].x) > 3);
     if (other && R.frac() < 0.6) chosen.push(other);
     // accept: mark it (and its mirror copies)
-    for (const [fx, fy] of (sym === 'xy' ? [[0, 0], [1, 0], [0, 1], [1, 1]] : [[0, 0], [1, 0]])) {
-      const mx = (x) => fx ? W - 1 - x : x, my = (y) => fy ? H - 1 - y : y;
+    for (const [mx, my, , fy] of FLIPS) {
       const mc = new Set(list.map(([x, y]) => idx(mx(x), my(y))));
       const mInside = (x, y) => inMap(x, y) && mc.has(idx(x, y));
       const mp = { cells: [], high: [], stairs: [], cx: 0, cy: 0 };
@@ -271,7 +285,7 @@ function tryBuild(theme, mapId, players, seedText) {
   };
 
   // home: a gold mine and a quarry beside the keep, a forest and some rocks close by
-  const side = sym === 'xy' ? toMid.y : 1;
+  const side = sym === 'x' ? 1 : toMid.y;
   placeNear(kc.x + toMid.x * 5, kc.y - 4 * side, 'gold');
   placeNear(kc.x + toMid.x * 5, kc.y + 4 * side, 'quarry');
   blob(kc.x - toMid.x * 1, kc.y - side * 10, R.between(3.2, 4.2), 'tree', theme.forestDensity);
@@ -376,7 +390,7 @@ function tryBuild(theme, mapId, players, seedText) {
   const decor = [];
   if (theme.decor === 'wheat') {
     for (const [ox, oy, w, h] of [[-4, 3, 3, 2], [3, -6, 2, 1]]) for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
-      const tx = src.x + 1 + ox * toMid.x + x, ty = src.y + oy * (sym === 'xy' ? side : 1) + y;
+      const tx = src.x + 1 + ox * toMid.x + x, ty = src.y + oy * (sym === 'x' ? 1 : side) + y;
       for (const [cx, cy] of copies(tx, ty)) if (inMap(cx, cy) && ter[idx(cx, cy)] === T.GRASS && !node[idx(cx, cy)] && !isKeepTile(cx, cy) && !clear.has(idx(cx, cy)))
         decor.push([cx, cy, 'wheat', 1 + ((x + y) % 3)]);
     }

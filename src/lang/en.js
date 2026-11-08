@@ -129,7 +129,7 @@ export const EN = {
   '٢ ضد ٢': '2 vs 2', 'أنت وحليفان ضد واحد': 'You and two allies vs one', 'أنت وحدك ضد ٣': 'You alone vs 3',
   'الممالك الصغيرة': 'Mini Kingdoms', 'ابنِ مملكتك، اجمع الموارد، وقُد جيشك مع حلفائك': 'Build your kingdom, gather resources and lead your army with your allies',
   'معركة مباشرة': 'Quick Battle', 'اختر الخريطة والعدو وابدأ': 'Pick a map and an enemy and go',
-  'المراحل': 'Campaign', 'مرحلة': 'stages', 'معركة مخصصة': 'Custom Battle', 'حتى ٤ ممالك وحلفاء': 'Up to 4 kingdoms and alliances',
+  'المراحل': 'Campaign', 'مرحلة': 'stages', 'معركة مخصصة': 'Custom Battle', 'حتى ٦ ممالك وحلفاء': 'Up to 6 kingdoms and alliances',
   'الإعدادات': 'Settings', 'العربية': 'العربية', 'رجوع': 'Back',
   'مملكتك': 'Your kingdom', 'العدو': 'The enemy', 'صعوبة العدو': 'Enemy difficulty', 'الخريطة': 'The map', 'ابدأ المعركة': 'Start battle',
   'عشوائي': 'Random', 'عشوائية': 'Random', 'أي خريطة': 'Any map', '🎲 عدو عشوائي': '🎲 random enemy', 'ضد': 'vs', 'خريطة عشوائية': 'random map',
@@ -233,4 +233,7 @@ export const EN = {
   'الشاشة': 'Screen',
   'ملء الشاشة': 'Full screen',
   'الخروج من ملء الشاشة': 'Exit full screen',
+  // ---------- 5-6 kingdoms ----------
+  '٣ ضد ٢': '3 vs 2', 'أنت وحليف ضد ٣': 'You and an ally vs 3', 'أنت وحدك ضد ٤': 'You alone vs 4',
+  '٣ ضد ٣': '3 vs 3', '٣ فرق من ٢': '3 teams of 2', 'أنت و٣ حلفاء ضد ٢': 'You and 3 allies vs 2',
 };

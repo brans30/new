@@ -39,11 +39,17 @@ export class Soldier extends Unit {
     super.command(cmd);
     this.retreating = false;
     if (!cmd.keepPost) this.post = null;
-    if (cmd.type !== 'patrol') this.patrolPts = null;
+    if (cmd.type !== 'patrol') { this.patrolPts = null; this.patrolRoute = null; }
     if (cmd.type !== 'move') this.calmAfterMove = false;
     if (cmd.type === 'attack') { this.target = cmd.target; this.resume = null; this.state = 'attack'; }
     if (cmd.type === 'attackMove') { this.dest = { x: cmd.x, y: cmd.y }; this.state = 'attackMove'; }
-    if (cmd.type === 'patrol') {
+    if (cmd.type === 'patrol' && cmd.route?.length) {
+      // a round along several points (the AI's guards walking along the inside of their walls)
+      this.patrolRoute = cmd.route;
+      let bi = 0, bd = Infinity;
+      cmd.route.forEach((p, i) => { const d = Math.hypot(p.x - this.x, p.y - this.y); if (d < bd) { bd = d; bi = i; } });
+      this.routeI = bi; this.dest = cmd.route[bi]; this.state = 'patrol';
+    } else if (cmd.type === 'patrol') {
       this.patrolPts = { a: { x: this.x, y: this.y }, b: { x: cmd.x, y: cmd.y } };
       this.dest = this.patrolPts.b; this.state = 'patrol';
     }
@@ -105,7 +111,9 @@ export class Soldier extends Unit {
       this.state = 'idle'; this.retreating = false;
       if (this.calmAfterMove) { this.calmAfterMove = false; this.calmUntil = this.scene.simTime + 5000; }
     }
-    else if (r?.blocked && !this.retreating) this.engage(r.blocked);     // forced move into an enemy wall: break it
+    // an enemy wall in the way: break it (also when retreating: soldiers caught inside an
+    // enemy's walls used to stand at the wall forever)
+    else if (r?.blocked) this.engage(r.blocked);
   }
 
   state_attackMove(time, dt) {
@@ -123,8 +131,9 @@ export class Soldier extends Unit {
     if (e) { this.engage(e); return; }
     const r = this.navigate(this.dest.x, this.dest.y, dt, 4);
     if (r === true) {
-      const p = this.patrolPts;
-      this.dest = this.dest === p.b ? p.a : p.b;
+      if (this.patrolRoute) { this.routeI = (this.routeI + 1) % this.patrolRoute.length; this.dest = this.patrolRoute[this.routeI]; }
+      else if (this.patrolPts) { const p = this.patrolPts; this.dest = this.dest === p.b ? p.a : p.b; }
+      else { this.state = 'idle'; return; }
       this.path = null;
     } else if (r?.blocked) this.engage(r.blocked);
   }

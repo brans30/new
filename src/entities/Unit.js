@@ -30,7 +30,7 @@ export class Unit extends Entity {
 
   // ---------- commands (called by input or AI) ----------
   command(cmd) {
-    this.path = null; this.navKey = null;
+    this.path = null; this.navKey = null; this.prog = null;
     if (cmd.type === 'move') { this.dest = { x: cmd.x, y: cmd.y }; this.state = 'move'; }
   }
 
@@ -71,7 +71,22 @@ export class Unit extends Entity {
   navigate(tx, ty, dt, stopDist = 2, target = null) {
     const grid = this.scene.grid;
     const d = Math.hypot(tx - this.x, ty - this.y);
-    if (d <= stopDist) { this.anim('idle'); this.stuck = 0; return true; }
+    if (d <= stopDist) { this.anim('idle'); this.stuck = 0; this.prog = null; return true; }
+
+    // progress watch: how far we still have to go (path tiles, or straight distance close by)
+    const now = this.scene.simTime, pk = Math.round(tx) + ',' + Math.round(ty);
+    const left = this.path?.length > 1 ? this.path.length * TILE : d;
+    if (!this.prog || this.prog.k !== pk || now - this.prog.last > 400) this.prog = { k: pk, best: left, t: now };
+    this.prog.last = now;
+    if (this.prog.t === now) { /* just started */ }
+    else if (left < this.prog.best - 3) { this.prog.best = left; this.prog.t = now; }
+    else if (!target && d < TILE * 2.5 && now - this.prog.t > 1200) {
+      // the spot is taken by others standing there: close enough, stop pushing
+      this.anim('idle'); this.stuck = 0; this.prog = null; return true;
+    } else if (now - this.prog.t > 3000) {
+      // no headway for 3 s (a jam, or a path that keeps flipping): a fresh path around the crowd
+      this.prog.t = now; this.prog.best = Infinity; this.path = null; this.navKey = null; this.nudge();
+    }
 
     // close by: walk straight
     if (d < TILE * 1.6) return this.stepToward(tx, ty, dt, stopDist);
@@ -114,6 +129,9 @@ export class Unit extends Entity {
     }
     return this.stepToward(tx, ty, dt, stopDist);
   }
+
+  // walking to something but stuck close to it behind others for a while?
+  stalled(ms) { return !!this.prog && this.scene.simTime - this.prog.t > ms; }
 
   // small random side-step to get out of a jam
   nudge() {

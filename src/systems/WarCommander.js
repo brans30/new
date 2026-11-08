@@ -1,5 +1,5 @@
 import { t } from '../i18n.js';
-import { TILE, TEAM } from '../data/config.js';
+import { TILE, TEAM, canTrainKind } from '../data/config.js';
 import { hostile, allied, nameOf } from './Match.js';
 import { Soldier } from '../entities/Soldier.js';
 import { Worker } from '../entities/Worker.js';
@@ -12,6 +12,8 @@ import { Worker } from '../entities/Worker.js';
 //    gateSpear   spearmen holding a line in front of the gate (they don't move)
 //    gateArcher  archers right behind the wall: protected and shooting further
 //    resGuard    watch the workers at the busiest resource outside the walls
+//    patrol      walk rounds along the inside of the walls, fighting anyone who gets in
+//    siegePost   catapults (ballistas) standing just inside the walls, shooting over them
 //    army        everybody else: the attack force
 //  When anything of ours is hit, the closest guards + the army at home respond,
 //  workers run home, and if the keep itself is in danger the alarm bell rings.
@@ -58,7 +60,46 @@ export class WarCommander {
 
   // ---------------- job assignment ----------------
   defenderTarget(total) {
-    return Math.min(12, Math.floor(total * 0.5));
+    return Math.min(16, Math.floor(total * 0.55));
+  }
+
+  // walls up (at least the front)? then the town has an inside to patrol and to put catapults in
+  get walled() { return this.ai.wallSides && !this.ai.wallSides.includes('front'); }
+
+  // how many catapults the town wants standing on its walls (humans only; orcs can't build them)
+  siegeWant() {
+    if (!this.walled || !canTrainKind('ballista', this.team)) return 0;
+    const min = this.ai.elapsed / 60000;
+    return Math.min(4, 1 + Math.floor((min - 6) / 4));
+  }
+
+  // a round along the inside of the walls: the corners and the middle of every side, clockwise
+  patrolRoute() {
+    const p = this.ai.planner, s = this.scene;
+    if (this.routeCache && this.routeCache.t > this.now - 30000) return this.routeCache.pts;
+    const f = p.front - 2, b = p.back + 2, tp = p.top + 2, bt = p.bottom - 2, mu = Math.round((f + b) / 2), mv = Math.round((tp + bt) / 2);
+    const pts = [];
+    for (const [u, v] of [[f, mv], [f, bt], [mu, bt], [b, bt], [b, mv], [b, tp], [mu, tp], [f, tp]]) {
+      const t = p.tile(u, v);
+      if (!p.inMap(t)) continue;
+      const q = s.snapFree({ x: (t.tx + 0.5) * TILE, y: (t.ty + 0.5) * TILE });
+      if (s.grid.isFree(Math.floor(q.x / TILE), Math.floor(q.y / TILE))) pts.push(q);
+    }
+    this.routeCache = { t: this.now, pts };
+    return pts;
+  }
+
+  // spots for catapults: just inside the wall, front corners first, then the middle of the sides
+  siegeSpots() {
+    const p = this.ai.planner, s = this.scene;
+    const f = p.front - 2, tp = p.top + 2, bt = p.bottom - 2;
+    const out = [];
+    for (const [u, v] of [[f, tp + 1], [f, bt - 1], [1, tp], [1, bt], [p.back + 2, tp], [p.back + 2, bt]]) {
+      const t = p.tile(u, v);
+      if (!p.inMap(t)) continue;
+      out.push(s.snapFree({ x: (t.tx + 0.5) * TILE, y: (t.ty + 0.5) * TILE }));
+    }
+    return out;
   }
 
   // high ground worth holding: our own hill and the one in the middle (not the player's)
@@ -94,6 +135,7 @@ export class WarCommander {
       gateArcher: [at(front - 1, -2), at(front - 1, 3), at(front - 1, -3), at(front - 1, 4)],
       resGuard: this.resourcePost(keep),
       hill: this.hillPosts(),
+      siegePost: this.walled ? this.siegeSpots() : [],
     };
   }
 
@@ -112,10 +154,19 @@ export class WarCommander {
   assignRoles(soldiers, keep) {
     for (const [u] of this.roles) if (!u.alive) this.roles.delete(u);
     const posts = this.posts(keep);
-    const want = { keepGuard: 2, gateSpear: 3, gateArcher: 2, resGuard: posts.resGuard.length ? 2 : 0, hill: posts.hill.length };
+    const route = this.walled ? this.patrolRoute() : [];
+    const want = { keepGuard: 2, gateSpear: 3, gateArcher: 2, resGuard: posts.resGuard.length ? 2 : 0, hill: posts.hill.length,
+      patrol: route.length >= 4 && soldiers.length >= 6 ? (soldiers.length >= 14 ? 4 : 2) : 0 };
     let budget = this.defenderTarget(soldiers.length);
     const count = (r) => [...this.roles.values()].filter(x => x === r).length;
-    budget -= [...this.roles.values()].filter(r => r !== 'army').length;
+    budget -= [...this.roles.values()].filter(r => r !== 'army' && r !== 'siegePost').length;
+
+    // catapults on the walls first (they don't count against the defender budget)
+    const siegeWant = Math.min(this.siegeWant(), posts.siegePost.length);
+    for (const u of soldiers) {
+      if (count('siegePost') >= siegeWant) break;
+      if (u.def.siege && this.roles.get(u) !== 'siegePost' && !(this.phase === 'march' && this.roles.get(u) === 'army')) this.roles.set(u, 'siegePost');
+    }
 
     const free = soldiers.filter(u => !this.roles.has(u) || this.roles.get(u) === 'army')
       .filter(u => !u.def.hero && !u.def.siege && !u.def.healer && (this.phase === 'build' || !this.roles.has(u)));
@@ -131,6 +182,10 @@ export class WarCommander {
     take('gateSpear', u => u.kind === 'spearman');
     take('gateSpear', u => u.kind === 'swordsman');
     take('gateArcher', u => u.def.ranged);
+    // guards walking rounds along the walls: fast and tough first
+    take('patrol', u => u.kind === 'knight' || u.kind === 'swordsman' || u.kind === 'axeman');
+    take('patrol', u => !u.def.ranged);
+    take('patrol', u => true);
     take('resGuard', u => !u.def.ranged);
     // hills: archers on top (they shoot further and harder from up there), plus a guard
     take('hill', u => u.def.ranged && !u.def.siege);
@@ -141,15 +196,24 @@ export class WarCommander {
     const idx = {};
     for (const [u, role] of this.roles) {
       if (role === 'army') continue;
+      if (role === 'patrol') {
+        // never chase further than a few tiles outside the walls, then pick the round up again
+        const k = keep, reach = Math.max(this.ai.planner.front, -this.ai.planner.back, -this.ai.planner.top, this.ai.planner.bottom) + 5;
+        u.post = { x: k.x, y: k.y, leash: TILE * reach };
+        u.setStance('aggressive');
+        if (!route.length) { this.roles.set(u, 'army'); continue; }
+        if (u.state === 'idle' || (u.state === 'move' && !u.retreating)) u.command({ type: 'patrol', route, keepPost: true });
+        continue;
+      }
       const list = posts[role] || [];
       const i = idx[role] = (idx[role] || 0);
       idx[role]++;
       const post = list[i % Math.max(1, list.length)];
       if (!post) { this.roles.set(u, 'army'); continue; }
-      const leash = { keepGuard: TILE * 7, gateSpear: TILE * 2, gateArcher: TILE * 1.5, resGuard: TILE * 9, hill: TILE * 3 }[role];
+      const leash = { keepGuard: TILE * 7, gateSpear: TILE * 2, gateArcher: TILE * 1.5, resGuard: TILE * 9, hill: TILE * 3, siegePost: TILE * 1 }[role];
       const changed = !u.post || Math.hypot(u.post.x - post.x, u.post.y - post.y) > 20;
       u.post = { x: post.x, y: post.y, leash };
-      u.setStance(role === 'gateSpear' || role === 'gateArcher' || (role === 'hill' && u.def.ranged) ? 'hold' : 'aggressive');
+      u.setStance(role === 'gateSpear' || role === 'gateArcher' || role === 'siegePost' || (role === 'hill' && u.def.ranged) ? 'hold' : 'aggressive');
       if (changed && u.state === 'idle') u.command({ type: 'move', x: post.x, y: post.y, keepPost: true });
     }
   }
@@ -178,6 +242,7 @@ export class WarCommander {
       const d = Math.hypot(u.x - a.x, u.y - a.y);
       const goes = a.forAlly ? (role === 'army' && this.phase === 'build' && d < TILE * 34) :
         (role === 'resGuard' && d < TILE * 14) ||
+        (role === 'patrol' && d < TILE * 12) ||
         (role === 'keepGuard' && dKeep < TILE * 9) ||
         (role === 'army' && this.phase !== 'march' && d < TILE * 26);
       if (goes) u.command({ type: 'attack', target: a.attacker, keepPost: true });

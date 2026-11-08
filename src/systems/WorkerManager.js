@@ -119,19 +119,50 @@ export class WorkerManager {
       let toDrop = Infinity;
       for (const d of drops) toDrop = Math.min(toDrop, Phaser.Math.Distance.Between(n.x, n.y, d.x, d.y));
       if (toDrop === Infinity) toDrop = 0;
-      const capacity = n.def?.mine ? 5 : 1;   // mines fit several workers
-      const crowdPenalty = Math.max(0, (crowd.get(n) || 0) - capacity + 1) * TILE * 4;
+      // mines fit several workers: as many as there is room around it (at most 5)
+      const capacity = n.def?.mine ? Math.min(5, this.room(n)) : 1;
+      const crowdPenalty = Math.max(0, (crowd.get(n) || 0) - capacity + 1) * TILE * 6;
       // right beside a drop-off (within 4 tiles): a bonus, these trips are the shortest
-      const besideStore = toDrop < TILE * 4 ? TILE * 3 : 0;
-      const score = toNode * 0.8 + toDrop * 1.3 + crowdPenalty - besideStore;
+      const besideStore = toDrop < TILE * 4 ? TILE * 4 : 0;
+      // the walk there happens once, the trip to the drop-off again and again: that counts most
+      const score = toNode * 0.5 + toDrop * 2 + crowdPenalty - besideStore;
       if (score < bestScore) { bestScore = score; best = n; }
     }
     return best;
   }
 
+  // free tiles around a node (where workers can stand to work it)
+  room(n) {
+    const g = this.scene.grid;
+    let k = 0;
+    for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1], [1, 1], [-1, -1], [1, -1], [-1, 1]]) if (g.isFree(n.tx + dx, n.ty + dy)) k++;
+    return Math.max(1, k);
+  }
+
+  // can this worker really walk up to the node? (a tree just behind our own wall is close
+  // by air, but there's no way round). Not reachable: skip it for 2 minutes.
+  canWalkTo(w, n) {
+    const g = this.scene.grid, sx = Math.floor(w.x / TILE), sy = Math.floor(w.y / TILE);
+    if (Math.max(Math.abs(sx - n.tx), Math.abs(sy - n.ty)) <= 1) return true;
+    const path = g.findPath(sx, sy, n.tx, n.ty, { team: this.team, goalTiles: n.tilesIndex(g.w) });
+    const end = path[path.length - 1];
+    if (end && end.x === n.tx && end.y === n.ty) return true;
+    (n.unreachable = n.unreachable || {})[this.team] = this.now + 120000;
+    return false;
+  }
+
+  // pickNode + a real path check on the winner (up to 3 tries)
+  pickReachable(w, type) {
+    for (let i = 0; i < 3; i++) {
+      const n = this.pickNode(w, type);
+      if (!n || this.canWalkTo(w, n)) return n;
+    }
+    return null;
+  }
+
   assign(w) {
     const type = this.chooseType(w);
-    const node = this.pickNode(w, type);
+    const node = this.pickReachable(w, type);
     if (node) w.command({ type: 'gather', node, auto: true });
     return !!node;
   }
@@ -142,18 +173,20 @@ export class WorkerManager {
     if (!this.auto || this.isManual(w)) return;
     const type = this.chooseType(w);
     if (type !== w.lastType || !w.node?.alive) {
-      const node = this.pickNode(w, type);
+      const node = this.pickReachable(w, type);
       if (node) { w.node = node; w.lastType = type; w.path = null; }
       return;
     }
+    // a much shorter round trip elsewhere (a closer mine, a new storehouse by a forest): move there.
+    // Mines too: workers no longer stay at a far mine when one beside a drop-off is free.
     const cur = w.node, best = this.pickNode(w, type);
-    if (!best || best === cur || cur.def.mine) return;
+    if (!best || best === cur) return;
     const trip = (n) => {
       let toDrop = Infinity;
       for (const b of this.scene.buildings) if (b.alive && b.complete && b.team === this.team && b.def.dropOff) toDrop = Math.min(toDrop, Math.hypot(n.x - b.x, n.y - b.y));
-      return Math.hypot(n.x - w.x, n.y - w.y) + toDrop * 2;
+      return Math.hypot(n.x - w.x, n.y - w.y) * 0.5 + toDrop * 2;
     };
-    if (trip(best) < trip(cur) * 0.65) { w.node = best; w.path = null; }
+    if (trip(best) < trip(cur) * 0.65 && this.canWalkTo(w, best)) { w.node = best; w.path = null; }
   }
 
   update(dt) {
@@ -174,7 +207,7 @@ export class WorkerManager {
     const mover = workers.filter(w => w.state === 'gather' && w.lastType === extra && !w.carrying && !this.isManual(w))
       .sort((a, b) => this.distToType(a, need) - this.distToType(b, need))[0];
     if (mover) {
-      const node = this.pickNode(mover, need);
+      const node = this.pickReachable(mover, need);
       if (node) mover.command({ type: 'gather', node, auto: true });
     }
   }
